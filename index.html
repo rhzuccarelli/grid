@@ -1,24 +1,814 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>Product Grid & Proportion Analyzer</title>
 <style>
-:root{--bg:#eceff1;--panel:#fff;--text:#171717;--muted:#6b7280;--border:#d9dde1;--blue:#1677ff;--green:#00a67d;--orange:#f59e0b;--red:#e5484d;--purple:#7c3aed}*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}.app{height:100%;display:grid;grid-template-columns:360px 1fr}.panel{background:#fff;border-right:1px solid var(--border);padding:18px;overflow:auto}h1{font-size:20px;margin:0 0 4px}h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#555;margin:0 0 9px}.small{font-size:12px;color:var(--muted);line-height:1.45}.group{border-top:1px solid #eee;padding-top:15px;margin-top:15px}label{font-size:13px;font-weight:650;display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}input[type=file],input[type=range],input[type=number],select{width:100%}input[type=number],select{border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}button{width:100%;border:1px solid var(--border);background:#fff;color:#111;border-radius:9px;padding:9px 10px;font-weight:700;cursor:pointer}button.active,button.primary{background:#111;color:#fff;border-color:#111}button.danger{color:#b42318}.workspace{position:relative;overflow:hidden;background:#dfe3e6}canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.toolbar{position:absolute;top:14px;left:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:5}.toolbar button{width:auto;background:rgba(255,255,255,.93);backdrop-filter:blur(6px)}.toolbar button.active{background:#111;color:#fff}.status{position:absolute;right:14px;top:14px;background:rgba(255,255,255,.93);border:1px solid rgba(0,0,0,.08);padding:8px 10px;border-radius:9px;font-size:12px;color:#555;z-index:4}.card{border:1px solid #e5e7eb;background:#fafafa;border-radius:10px;padding:10px;font-size:12px;margin-top:8px}.big{font-size:19px;font-weight:750;margin-top:3px}.check{display:flex;justify-content:flex-start;gap:8px;align-items:center;font-weight:500}.check input{width:auto}.mark-controls{display:flex;gap:12px;margin-top:6px}.mark-controls label{font-size:11px;font-weight:500;margin:0}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#555}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}@media(max-width:840px){.app{grid-template-columns:1fr;grid-template-rows:auto 64vh;height:auto;min-height:100vh}.panel{border-right:0;border-bottom:1px solid var(--border)}}
+:root{
+  --bg:#eceff1; --panel:#fff; --text:#171717; --muted:#6b7280; --border:#d9dde1;
+  --blue:#1677ff; --green:#00a67d; --orange:#f59e0b; --red:#e5484d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+.app{height:100%;display:grid;grid-template-columns:360px 1fr}
+.panel{background:#fff;border-right:1px solid var(--border);padding:18px;overflow:auto}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:#555;margin:0 0 9px}
+.small{font-size:12px;color:var(--muted);line-height:1.45}
+.group{border-top:1px solid #eee;padding-top:15px;margin-top:15px}
+label{font-size:13px;font-weight:650;display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
+input[type=file],input[type=range],input[type=number],select{width:100%}
+input[type=number],select{border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+button{
+  width:100%;border:1px solid var(--border);background:#fff;color:#111;border-radius:9px;padding:9px 10px;font-weight:700;cursor:pointer
+}
+button.active,button.primary{background:#111;color:#fff;border-color:#111}
+button.danger{color:#b42318}
+.workspace{position:relative;overflow:hidden;background:#dfe3e6}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.toolbar{position:absolute;top:14px;left:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:5}
+.toolbar button{width:auto;background:rgba(255,255,255,.93);backdrop-filter:blur(6px)}
+.toolbar button.active{background:#111;color:#fff}
+.status{position:absolute;right:14px;top:14px;background:rgba(255,255,255,.93);border:1px solid rgba(0,0,0,.08);padding:8px 10px;border-radius:9px;font-size:12px;color:#555;z-index:4}
+.card{border:1px solid #e5e7eb;background:#fafafa;border-radius:10px;padding:10px;font-size:12px}
+.bigmetric{font-size:19px;font-weight:750;margin-top:3px}
+.results{display:flex;flex-direction:column;gap:8px}
+.landmark{border:1px solid #e4e4e4;border-radius:9px;padding:9px;background:#fafafa;font-size:12px}
+.landmark-controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px}
+.landmark-controls label{font-size:11px;font-weight:500;margin:0;justify-content:flex-start;align-items:center}
+.landmark-controls input{width:auto}
+.measurement{border:1px solid #e4e4e4;border-radius:9px;padding:9px;background:#fafafa;font-size:12px}
+.metric{font-variant-numeric:tabular-nums;color:#555}
+.check{display:flex;justify-content:flex-start;gap:8px;align-items:center;font-weight:500}
+.check input{width:auto}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#555}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+@media(max-width:840px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto 64vh;height:auto;min-height:100vh}
+ .panel{border-right:0;border-bottom:1px solid var(--border)}
+}
 </style>
-</head><body><div class="app"><aside class="panel">
-<h1>Product Grid & Proportion Analyzer</h1><div class="small">Square-grid, proportion, landmark and measurement analysis for product photographs.</div>
-<div class="group"><h2>1 · Image</h2><input id="file" type="file" accept="image/*"><div style="height:8px"></div><button id="demo">Load demo product</button></div>
-<div class="group"><h2>Edge Assist</h2><label class="check"><input id="edge" type="checkbox"> Enable edge snapping</label><label>Snap radius <span id="rv" class="small">20 px</span></label><input id="rad" type="range" min="4" max="60" value="20"><label>Sensitivity <span id="sv" class="small">35</span></label><input id="sens" type="range" min="5" max="100" value="35"></div>
-<div class="group"><h2>2 · Product limits</h2><div class="small">Set left, right, top and bottom. Each selected side appears immediately.</div><div style="height:8px"></div><button id="setSides" class="primary">Set 4 sides</button><div style="height:8px"></div><button id="resetSides">Reset sides</button></div>
-<div class="group"><h2>3 · Square grid</h2><label>Drive grid by</label><select id="drive"><option value="cols">Number of columns</option><option value="rows">Number of rows</option><option value="cell">Cell size in pixels</option></select><div id="colsBox"><label>Columns</label><input id="cols" type="number" value="30" min="1"></div><div id="rowsBox" style="display:none"><label>Rows</label><input id="rows" type="number" value="35" min="1"></div><div id="cellBox" style="display:none"><label>Cell size px</label><input id="cell" type="number" value="20" min="1"></div><label>Grid opacity</label><input id="opacity" type="range" min="10" max="100" value="65"><label class="check"><input id="centers" type="checkbox" checked> Show center axes</label><label class="check"><input id="extend" type="checkbox"> Extend grid to full image</label></div>
-<div class="group"><h2>4 · Calibration</h2><label>Known side</label><select id="knownSide"><option value="width">Product width</option><option value="height">Product height</option></select><label>Dimension mm</label><input id="knownMM" type="number" step="0.1" placeholder="e.g. 300"></div>
-<div class="group"><h2>5 · Landmarks</h2><div class="row"><button id="undoMark">Undo last</button><button id="clearMark" class="danger">Clear all</button></div><div id="marks"></div></div>
-<div class="group"><h2>6 · Measure</h2><label class="check"><input id="snap" type="checkbox" checked> Snap measurement points to grid</label><div class="row"><button id="undoMeasure">Undo last</button><button id="clearMeasure" class="danger">Clear all</button></div><div id="measures"></div></div>
-<div class="group"><h2>Analysis</h2><div class="card"><div class="small">Aspect ratio W:H</div><div id="ratio" class="big">—</div><div id="ratio2" class="small"></div><div style="height:8px"></div><div class="small">Grid</div><div id="grid" class="big">—</div><div style="height:8px"></div><div class="small">Dimensions</div><div id="dims" class="big">—</div></div></div>
-<div class="group"><h2>7 · Export</h2><button id="png" class="primary">Export annotated PNG</button><div style="height:8px"></div><button id="report">Export B5 report</button></div>
-<div class="group"><div class="legend"><span><span class="dot" style="background:var(--blue)"></span>Limits</span><span><span class="dot" style="background:var(--green)"></span>Grid</span><span><span class="dot" style="background:var(--red)"></span>Landmarks</span><span><span class="dot" style="background:var(--purple)"></span>Measurements</span></div></div>
-</aside><main class="workspace" id="workspace"><canvas id="canvas"></canvas><div class="toolbar"><button data-mode="pan" class="active">Pan</button><button data-mode="sides">Set 4 sides</button><button data-mode="landmark">Landmark</button><button data-mode="measure">Measure</button><button id="fit">Fit</button></div><div class="status" id="status">Load image or demo</div></main></div>
+</head>
+<body>
+<div class="app">
+<aside class="panel">
+  <h1>Product Grid & Proportion Analyzer</h1>
+  <div class="small">Square-grid, proportion and landmark analysis for product photographs.</div>
+
+  <div class="group">
+    <h2>1 · Image</h2>
+    <input id="file" type="file" accept="image/*">
+    <div style="height:8px"></div>
+    <button id="demo">Load demo product</button>
+  </div>
+
+  <div class="group">
+    <h2>2 · Product limits</h2>
+    <div class="small">Set the four orthogonal limits in this order: <b>left, right, top, bottom</b>.</div>
+    <div style="height:9px"></div>
+    <button id="setSides" class="primary">Set 4 sides</button>
+    <div style="height:8px"></div>
+    <button id="resetSides">Reset sides</button>
+  </div>
+
+  <div class="group">
+    <h2>3 · Square grid</h2>
+    <label>Drive grid by</label>
+    <select id="drive">
+      <option value="cols">Number of columns</option>
+      <option value="rows">Number of rows</option>
+      <option value="cell">Cell size in pixels</option>
+    </select>
+    <div style="height:10px"></div>
+
+    <div id="colsBox">
+      <label>Columns</label>
+      <input id="cols" type="number" min="1" max="300" value="30">
+    </div>
+    <div id="rowsBox" style="display:none">
+      <label>Rows</label>
+      <input id="rows" type="number" min="1" max="300" value="35">
+    </div>
+    <div id="cellBox" style="display:none">
+      <label>Cell size <span class="small">px</span></label>
+      <input id="cell" type="number" min="1" max="1000" value="20">
+    </div>
+
+    <div style="height:10px"></div>
+    <label>Grid opacity <span id="opVal" class="small">65%</span></label>
+    <input id="opacity" type="range" min="10" max="100" value="65">
+
+    <div style="height:10px"></div>
+    <label class="check"><input id="centers" type="checkbox" checked> Show center axes</label>
+    <div style="height:8px"></div>
+    <label class="check"><input id="extendGrid" type="checkbox"> Extend grid to full image</label>
+  </div>
+
+  <div class="group">
+    <h2>4 · Real dimension calibration</h2>
+    <label>Known side</label>
+    <select id="knownSide">
+      <option value="width">Product width</option>
+      <option value="height">Product height</option>
+    </select>
+    <div style="height:8px"></div>
+    <label>Dimension <span class="small">mm</span></label>
+    <input id="knownMM" type="number" min="0.001" step="0.1" placeholder="e.g. 300">
+    <div class="small" style="margin-top:8px">Once one real dimension is known, the grid cell size and the other product dimension are calculated in millimetres.</div>
+  </div>
+
+  <div class="group">
+    <h2>5 · Landmarks</h2>
+    <div class="small">Choose <b>Landmark</b> and click feature centers, seams, display edges, controls, etc.</div>
+    <div style="height:9px"></div>
+    <div class="row">
+      <button id="undoMark">Undo last</button>
+      <button id="clearMarks" class="danger">Clear all</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <h2>6 · Measure</h2>
+    <div class="small">Choose <b>Measure</b>, then click two points. Each endpoint can snap to the nearest grid intersection.</div>
+    <div style="height:9px"></div>
+    <label class="check"><input id="snapMeasure" type="checkbox" checked> Snap measurement points to grid</label>
+    <div style="height:9px"></div>
+    <div class="row">
+      <button id="undoMeasure">Undo last</button>
+      <button id="clearMeasures" class="danger">Clear all</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <h2>Analysis</h2>
+    <div class="card">
+      <div class="small">Product area</div>
+      <div id="areaMetric" class="bigmetric">—</div>
+
+      <div style="height:8px"></div>
+      <div class="small">Aspect ratio W:H</div>
+      <div id="ratioMetric" class="bigmetric">—</div>
+      <div id="ratioHint" class="small"></div>
+
+      <div style="height:8px"></div>
+      <div class="small">Square cell size</div>
+      <div id="cellMetric" class="bigmetric">—</div>
+
+      <div style="height:8px"></div>
+      <div class="small">Resulting grid</div>
+      <div id="gridMetric" class="bigmetric">—</div>
+
+      <div style="height:8px"></div>
+      <div class="small">Real dimensions</div>
+      <div id="realMetric" class="bigmetric">—</div>
+    </div>
+
+    <div style="height:10px"></div>
+    <div id="results" class="results"></div>
+      <div style="height:10px"></div>
+      <div id="measureResults" class="results"></div>
+  </div>
+
+  <div class="group">
+    <h2>7 · Report</h2>
+    <div class="small">Generate an ISO B5 analysis sheet with the annotated image, proportions, grid calibration, landmarks and measurements.</div>
+    <div style="height:9px"></div>
+    <button id="exportReport" class="primary">Export B5 report / PDF</button>
+    <div style="height:8px"></div>
+    <button id="exportPNG">Export annotated PNG</button>
+    <div class="small" style="margin-top:8px">PNG export crops to the nearest interior grid lines at the four image edges and embeds the analysis data in the exported image.</div>
+  </div>
+
+  <div class="group">
+    <div class="legend">
+      <span><span class="dot" style="background:#1677ff"></span>Product limits</span>
+      <span><span class="dot" style="background:#00a67d"></span>Square grid</span>
+      <span><span class="dot" style="background:#f59e0b"></span>Center axes</span>
+      <span><span class="dot" style="background:#e5484d"></span>Landmarks</span>
+    </div>
+  </div>
+</aside>
+
+<main class="workspace" id="workspace">
+  <canvas id="canvas"></canvas>
+  <div class="toolbar">
+    <button data-mode="pan" class="active">Pan</button>
+    <button data-mode="sides">Set 4 sides</button>
+    <button data-mode="landmark">Landmark</button>
+    <button data-mode="measure">Measure</button>
+    <button id="fit">Fit</button>
+  </div>
+  <div class="status" id="status">Load an image or demo</div>
+</main>
+</div>
+
 <script>
-(()=>{const $=id=>document.getElementById(id),cv=$('canvas'),ctx=cv.getContext('2d'),ws=$('workspace');let img=null,bs=1,z=1,ix=0,iy=0,mode='pan',step=0,s={left:null,right:null,top:null,bottom:null},marks=[],meas=[],pending=null,drag=false,lx=0,ly=0,pix=null;const size=()=>{let r=ws.getBoundingClientRect();return{w:r.width,h:r.height}},ready=()=>Object.values(s).every(v=>v!==null);function resize(){let q=size(),d=devicePixelRatio||1;cv.width=Math.max(1,q.w*d);cv.height=Math.max(1,q.h*d);cv.style.width=q.w+'px';cv.style.height=q.h+'px';ctx.setTransform(d,0,0,d,0,0);draw()}function fit(){if(!img)return;let q=size();bs=Math.min(q.w/img.width,q.h/img.height)*.92;z=1;ix=(q.w-img.width*bs)/2;iy=(q.h-img.height*bs)/2;draw()}function i2s(x,y){let a=bs*z;return{x:ix+x*a,y:iy+y*a}}function s2i(x,y){let a=bs*z;return{x:(x-ix)/a,y:(y-iy)/a}}function rect(){if(!ready())return null;let l=Math.min(s.left,s.right),r=Math.max(s.left,s.right),t=Math.min(s.top,s.bottom),b=Math.max(s.top,s.bottom);return{x:l,y:t,w:r-l,h:b-t}}function gridSpec(){let r=rect();if(!r)return null;let d=$('drive').value,c,co,ro;if(d==='cols'){co=Math.max(1,+$('cols').value||1);c=r.w/co;ro=Math.max(1,Math.round(r.h/c))}else if(d==='rows'){ro=Math.max(1,+$('rows').value||1);c=r.h/ro;co=Math.max(1,Math.round(r.w/c))}else{c=Math.max(1,+$('cell').value||1);co=Math.max(1,Math.round(r.w/c));ro=Math.max(1,Math.round(r.h/c))}return{cell:c,cols:co,rows:ro}}function mm(){let r=rect(),g=gridSpec(),k=+$('knownMM').value;if(!r||!g||!k)return null;let p,w,h;if($('knownSide').value==='width'){p=k/r.w;w=k;h=r.h*p}else{p=k/r.h;h=k;w=r.w*p}return{p,w,h,cell:g.cell*p}}function frac(v,m=12){let b=[0,1,999];for(let d=1;d<=m;d++)for(let n=0;n<=m*2;n++){let e=Math.abs(v-n/d);if(e<b[2])b=[n,d,e]}return b[0]+'/'+b[1]}function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));if(m==='sides'){step=0;$('status').textContent='Click LEFT'}else if(m==='measure')$('status').textContent=pending?'Click measurement end':'Click measurement start';else $('status').textContent=m==='landmark'?'Click a feature':'Pan image'}function lum(x,y){if(!pix){let o=document.createElement('canvas');o.width=img.width;o.height=img.height;let c=o.getContext('2d',{willReadFrequently:true});c.drawImage(img,0,0);pix=c.getImageData(0,0,img.width,img.height).data}x=Math.max(1,Math.min(img.width-2,Math.round(x)));y=Math.max(1,Math.min(img.height-2,Math.round(y)));let i=(y*img.width+x)*4;return .2126*pix[i]+.7152*pix[i+1]+.0722*pix[i+2]}function edgeSnap(p,k){if(!$('edge').checked||!img)return p;let R=+$('rad').value,T=+$('sens').value,b={p,sc:T};if(k==='v')for(let d=-R;d<=R;d++){let x=p.x+d,sc=Math.abs(lum(x+1,p.y)-lum(x-1,p.y));if(sc>b.sc)b={p:{x,y:p.y},sc}}else if(k==='h')for(let d=-R;d<=R;d++){let y=p.y+d,sc=Math.abs(lum(p.x,y+1)-lum(p.x,y-1));if(sc>b.sc)b={p:{x:p.x,y},sc}}else for(let dy=-R;dy<=R;dy+=2)for(let dx=-R;dx<=R;dx+=2){let x=p.x+dx,y=p.y+dy,sc=Math.abs(lum(x+1,y)-lum(x-1,y))+Math.abs(lum(x,y+1)-lum(x,y-1));if(sc>b.sc)b={p:{x,y},sc}}return b.p}function snapGrid(p){let r=rect(),g=gridSpec();if(!r||!g)return p;return{x:r.x+Math.round((p.x-r.x)/g.cell)*g.cell,y:r.y+Math.round((p.y-r.y)/g.cell)*g.cell}}function endpoint(p,snapped){ctx.fillStyle='var(--purple)';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.stroke();if(snapped){ctx.strokeStyle='#7c3aed';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(p.x-10,p.y);ctx.lineTo(p.x+10,p.y);ctx.moveTo(p.x,p.y-10);ctx.lineTo(p.x,p.y+10);ctx.stroke()}}function draw(){let q=size();ctx.clearRect(0,0,q.w,q.h);ctx.fillStyle='#dfe3e6';ctx.fillRect(0,0,q.w,q.h);if(img){let a=bs*z;ctx.drawImage(img,ix,iy,img.width*a,img.height*a)}let r=rect(),g=gridSpec();if(r&&g){let a=i2s(r.x,r.y),b=i2s(r.x+r.w,r.y+r.h),cell=g.cell*bs*z;ctx.save();ctx.strokeStyle='#00a67d';ctx.globalAlpha=+$('opacity').value/100;if($('extend').checked&&img){let tl=i2s(0,0),br=i2s(img.width,img.height),sx=a.x;while(sx-cell>=tl.x)sx-=cell;let sy=a.y;while(sy-cell>=tl.y)sy-=cell;for(let x=sx;x<=br.x;x+=cell){ctx.beginPath();ctx.moveTo(x,tl.y);ctx.lineTo(x,br.y);ctx.stroke()}for(let y=sy;y<=br.y;y+=cell){ctx.beginPath();ctx.moveTo(tl.x,y);ctx.lineTo(br.x,y);ctx.stroke()}}else{for(let x=a.x;x<=b.x+.5;x+=cell){ctx.beginPath();ctx.moveTo(x,a.y);ctx.lineTo(x,b.y);ctx.stroke()}for(let y=a.y;y<=b.y+.5;y+=cell){ctx.beginPath();ctx.moveTo(a.x,y);ctx.lineTo(b.x,y);ctx.stroke()}}ctx.restore();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);if($('centers').checked){ctx.save();ctx.strokeStyle='#f59e0b';ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo((a.x+b.x)/2,a.y);ctx.lineTo((a.x+b.x)/2,b.y);ctx.moveTo(a.x,(a.y+b.y)/2);ctx.lineTo(b.x,(a.y+b.y)/2);ctx.stroke();ctx.restore()}}if(img){let tl=i2s(0,0),br=i2s(img.width,img.height);[['left','v'],['right','v'],['top','h'],['bottom','h']].forEach(([n,k])=>{if(s[n]===null)return;ctx.save();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;if(!ready())ctx.setLineDash([7,5]);if(k==='v'){let p=i2s(s[n],0);ctx.beginPath();ctx.moveTo(p.x,tl.y);ctx.lineTo(p.x,br.y);ctx.stroke()}else{let p=i2s(0,s[n]);ctx.beginPath();ctx.moveTo(tl.x,p.y);ctx.lineTo(br.x,p.y);ctx.stroke()}ctx.restore()})}marks.forEach((m,i)=>{let p=i2s(m.x,m.y);ctx.save();ctx.strokeStyle='#e5484d';ctx.setLineDash([5,4]);if(m.ax){ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(q.w,p.y);ctx.stroke()}if(m.ay){ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,q.h);ctx.stroke()}ctx.restore();ctx.fillStyle='#e5484d';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,p.x,p.y)});meas.forEach(m=>{let a=i2s(m.a.x,m.a.y),b=i2s(m.b.x,m.b.y);ctx.save();ctx.strokeStyle='#7c3aed';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();endpoint(a,m.snapped);endpoint(b,m.snapped);let d=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y),cal=mm(),lab=cal?(d*cal.p).toFixed(1)+' mm':d.toFixed(1)+' px',mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.font='12px system-ui';let tw=ctx.measureText(lab).width;ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillRect(mx-tw/2-5,my-20,tw+10,17);ctx.fillStyle='#111';ctx.textAlign='center';ctx.fillText(lab,mx,my-7);ctx.restore()});if(pending){let p=i2s(pending.x,pending.y);endpoint(p,$('snap').checked)}analysis()}function analysis(){let r=rect(),g=gridSpec(),m=mm();if(!r||!g){$('ratio').textContent='—';return}$('ratio').textContent=(r.w/r.h).toFixed(3)+':1';$('ratio2').textContent='H/W = '+(r.h/r.w).toFixed(3)+' · ≈ '+frac(r.w/r.h);$('grid').textContent=g.cols+' × '+g.rows+' · cell '+(m?m.cell.toFixed(2)+' mm':g.cell.toFixed(2)+' px');$('dims').textContent=m?m.w.toFixed(1)+' × '+m.h.toFixed(1)+' mm':'—';$('marks').innerHTML=marks.map((x,i)=>{let u=(x.x-r.x)/r.w,v=(x.y-r.y)/r.h;return `<div class="card">L${i+1}: ${(u*100).toFixed(1)}% W ≈ ${frac(u)} · ${(v*100).toFixed(1)}% H ≈ ${frac(v)}<div class="mark-controls"><label><input type="checkbox" data-i="${i}" data-a="ax" ${x.ax?'checked':''}> X axis</label><label><input type="checkbox" data-i="${i}" data-a="ay" ${x.ay?'checked':''}> Y axis</label></div></div>`}).join('');document.querySelectorAll('#marks input').forEach(x=>x.onchange=()=>{marks[+x.dataset.i][x.dataset.a]=x.checked;draw()});$('measures').innerHTML=meas.map((x,i)=>{let dx=x.b.x-x.a.x,dy=x.b.y-x.a.y,d=Math.hypot(dx,dy);return `<div class="card">M${i+1}: ${m?(d*m.p).toFixed(2)+' mm':d.toFixed(1)+' px'}${x.snapped?' · snapped to grid':''}</div>`}).join('')}function crop(){let r=rect(),g=gridSpec();if(!r||!g)return{x:0,y:0,w:img.width,h:img.height};let x1=r.x+Math.ceil(-r.x/g.cell)*g.cell,x2=r.x+Math.floor((img.width-r.x)/g.cell)*g.cell,y1=r.y+Math.ceil(-r.y/g.cell)*g.cell,y2=r.y+Math.floor((img.height-r.y)/g.cell)*g.cell;return{x:x1,y:y1,w:x2-x1,h:y2-y1}}function exportPNG(){if(!img||!ready())return alert('Define image and four sides first');let cr=crop(),r=rect(),g=gridSpec(),m=mm(),foot=Math.max(180,90+(marks.length+meas.length)*24),out=document.createElement('canvas');out.width=cr.w;out.height=cr.h+foot;let c=out.getContext('2d');c.drawImage(img,cr.x,cr.y,cr.w,cr.h,0,0,cr.w,cr.h);c.strokeStyle='#00a67d';for(let x=r.x+Math.ceil((cr.x-r.x)/g.cell)*g.cell;x<=cr.x+cr.w;x+=g.cell){c.beginPath();c.moveTo(x-cr.x,0);c.lineTo(x-cr.x,cr.h);c.stroke()}for(let y=r.y+Math.ceil((cr.y-r.y)/g.cell)*g.cell;y<=cr.y+cr.h;y+=g.cell){c.beginPath();c.moveTo(0,y-cr.y);c.lineTo(cr.w,y-cr.y);c.stroke()}marks.forEach((a,i)=>{c.fillStyle='#e5484d';c.beginPath();c.arc(a.x-cr.x,a.y-cr.y,7,0,Math.PI*2);c.fill();c.fillStyle='#fff';c.fillText(i+1,a.x-cr.x-3,a.y-cr.y+3)});meas.forEach(a=>{c.strokeStyle='#7c3aed';c.lineWidth=2;c.beginPath();c.moveTo(a.a.x-cr.x,a.a.y-cr.y);c.lineTo(a.b.x-cr.x,a.b.y-cr.y);c.stroke()});c.fillStyle='#fff';c.fillRect(0,cr.h,cr.w,foot);c.fillStyle='#111';c.font='16px system-ui';let lines=[`Aspect W:H ${(r.w/r.h).toFixed(3)}:1`,`Grid ${g.cols} × ${g.rows}`];if(m)lines.push(`Product ${m.w.toFixed(1)} × ${m.h.toFixed(1)} mm`,`PNG crop ${(cr.w*m.p).toFixed(1)} × ${(cr.h*m.p).toFixed(1)} mm`,`Cell ${m.cell.toFixed(2)} mm`);marks.forEach((a,i)=>lines.push(`L${i+1}: ${(((a.x-r.x)/r.w)*100).toFixed(1)}% W · ${(((a.y-r.y)/r.h)*100).toFixed(1)}% H`));meas.forEach((a,i)=>{let d=Math.hypot(a.b.x-a.a.x,a.b.y-a.a.y);lines.push(`M${i+1}: ${m?(d*m.p).toFixed(2)+' mm':d.toFixed(1)+' px'}`)});lines.forEach((t,i)=>c.fillText(t,16,cr.h+28+i*22));out.toBlob(b=>{let u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='product-grid-analysis.png';a.target='_blank';a.click();setTimeout(()=>URL.revokeObjectURL(u),60000)},'image/png')}function report(){if(!img||!ready())return alert('Define image and sides first');let r=rect(),g=gridSpec(),m=mm(),html=`<html><head><style>@page{size:176mm 250mm;margin:12mm}body{font:9pt system-ui;color:#171717}h1{font-size:17pt}table{width:100%;border-collapse:collapse}td,th{padding:5px;border-bottom:1px solid #ccc;text-align:left}</style></head><body><h1>Product Grid Analysis</h1><p>W:H ${(r.w/r.h).toFixed(3)}:1 · H/W ${(r.h/r.w).toFixed(3)}</p><p>Grid ${g.cols} × ${g.rows}${m?' · '+m.w.toFixed(1)+' × '+m.h.toFixed(1)+' mm':''}</p><h2>Landmarks</h2><table>${marks.map((x,i)=>`<tr><td>L${i+1}</td><td>${(((x.x-r.x)/r.w)*100).toFixed(1)}% W · ${(((x.y-r.y)/r.h)*100).toFixed(1)}% H</td></tr>`).join('')}</table><h2>Measurements</h2><table>${meas.map((x,i)=>{let d=Math.hypot(x.b.x-x.a.x,x.b.y-x.a.y);return `<tr><td>M${i+1}</td><td>${m?(d*m.p).toFixed(2)+' mm':d.toFixed(1)+' px'}</td></tr>`}).join('')}</table><script>print()<\/script></body></html>`;let u=URL.createObjectURL(new Blob([html],{type:'text/html'}));window.open(u,'_blank')}cv.addEventListener('pointerdown',e=>{let rr=cv.getBoundingClientRect(),x=e.clientX-rr.left,y=e.clientY-rr.top;if(mode==='pan'){drag=true;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId);return}let p=s2i(x,y);if(mode==='sides'){if(step===0){p=edgeSnap(p,'v');s.left=p.x;$('status').textContent='Click RIGHT'}else if(step===1){p=edgeSnap(p,'v');s.right=p.x;$('status').textContent='Click TOP'}else if(step===2){p=edgeSnap(p,'h');s.top=p.y;$('status').textContent='Click BOTTOM'}else{p=edgeSnap(p,'h');s.bottom=p.y;$('status').textContent='Four sides set'}step++}else if(mode==='landmark'){p=edgeSnap(p,'f');marks.push({...p,ax:false,ay:false})}else if(mode==='measure'){p=edgeSnap(p,'f');let snapped=$('snap').checked;if(snapped)p=snapGrid(p);if(!pending){pending=p;$('status').textContent='Click measurement end'}else{meas.push({a:pending,b:p,snapped});pending=null;$('status').textContent='Click measurement start'}}draw()});cv.addEventListener('pointermove',e=>{if(!drag)return;ix+=e.clientX-lx;iy+=e.clientY-ly;lx=e.clientX;ly=e.clientY;draw()});cv.addEventListener('pointerup',e=>{drag=false;try{cv.releasePointerCapture(e.pointerId)}catch{}});document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));$('setSides').onclick=()=>setMode('sides');$('resetSides').onclick=()=>{s={left:null,right:null,top:null,bottom:null};step=0;draw();setMode('sides')};$('undoMark').onclick=()=>{marks.pop();draw()};$('clearMark').onclick=()=>{marks=[];draw()};$('undoMeasure').onclick=()=>{if(pending)pending=null;else meas.pop();draw()};$('clearMeasure').onclick=()=>{meas=[];pending=null;draw()};$('fit').onclick=fit;$('png').onclick=exportPNG;$('report').onclick=report;$('drive').onchange=()=>{let v=$('drive').value;$('colsBox').style.display=v==='cols'?'block':'none';$('rowsBox').style.display=v==='rows'?'block':'none';$('cellBox').style.display=v==='cell'?'block':'none';draw()};['cols','rows','cell','opacity','centers','extend','knownMM','knownSide'].forEach(id=>$(id).oninput=draw);$('rad').oninput=()=>$('rv').textContent=$('rad').value+' px';$('sens').oninput=()=>$('sv').textContent=$('sens').value;$('file').onchange=e=>{let f=e.target.files[0];if(!f)return;let u=URL.createObjectURL(f),n=new Image;n.onload=()=>{img=n;pix=null;URL.revokeObjectURL(u);s={left:null,right:null,top:null,bottom:null};marks=[];meas=[];pending=null;fit();setMode('sides')};n.src=u};$('demo').onclick=()=>{let o=document.createElement('canvas');o.width=1100;o.height=760;let c=o.getContext('2d');c.fillStyle='#ece8df';c.fillRect(0,0,1100,760);c.fillStyle='#b8b2a7';c.fillRect(180,170,740,420);c.fillStyle='#242424';c.fillRect(220,210,660,340);c.fillStyle='#dadada';c.fillRect(590,255,190,78);let n=new Image;n.onload=()=>{img=n;pix=null;s={left:180,right:920,top:170,bottom:590};marks=[];meas=[];pending=null;fit();draw()};n.src=o.toDataURL()};new ResizeObserver(resize).observe(ws);resize();setMode('pan')})();
-</script></body></html>
+(()=>{
+const $=id=>document.getElementById(id);
+const canvas=$('canvas'),ctx=canvas.getContext('2d'),workspace=$('workspace');
+let img=null,baseScale=1,zoom=1,imgX=0,imgY=0;
+let mode='pan',sideStep=0;
+let sides={left:null,right:null,top:null,bottom:null};
+let marks=[];
+let measures=[];
+let pendingMeasure=null;
+let drag=false,lx=0,ly=0;
+
+function size(){const r=workspace.getBoundingClientRect();return{w:r.width,h:r.height}}
+function resize(){const {w,h}=size(),dpr=devicePixelRatio||1;canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
+function fit(){if(!img)return;const {w,h}=size();baseScale=Math.min(w/img.width,h/img.height)*.92;zoom=1;imgX=(w-img.width*baseScale)/2;imgY=(h-img.height*baseScale)/2;draw()}
+function s2i(x,y){const s=baseScale*zoom;return{x:(x-imgX)/s,y:(y-imgY)/s}}
+function i2s(x,y){const s=baseScale*zoom;return{x:imgX+x*s,y:imgY+y*s}}
+function ready(){return sides.left!==null&&sides.right!==null&&sides.top!==null&&sides.bottom!==null}
+function rect(){if(!ready())return null;const l=Math.min(sides.left,sides.right),r=Math.max(sides.left,sides.right),t=Math.min(sides.top,sides.bottom),b=Math.max(sides.top,sides.bottom);return{x:l,y:t,w:r-l,h:b-t}}
+function gcd(a,b){return b?gcd(b,a%b):a}
+function nearestFraction(v,maxDen=20){
+ let best={n:1,d:1,err:Infinity};
+ for(let d=1;d<=maxDen;d++)for(let n=1;n<=maxDen*2;n++){
+   const q=n/d,e=Math.abs(v-q);
+   if(e<best.err)best={n,d,err:e};
+ }
+ const g=gcd(best.n,best.d)||1;best.n/=g;best.d/=g;return best;
+}
+function commonRatioName(r){
+ const refs=[
+   {v:1,name:'1:1 square'},
+   {v:4/3,name:'4:3'},
+   {v:3/2,name:'3:2'},
+   {v:16/10,name:'16:10'},
+   {v:16/9,name:'16:9'},
+   {v:(1+Math.sqrt(5))/2,name:'φ golden ratio'},
+   {v:Math.sqrt(2),name:'√2'},
+   {v:5/4,name:'5:4'},
+   {v:6/5,name:'6:5'}
+ ];
+ let b=refs[0];for(const x of refs)if(Math.abs(r-x.v)<Math.abs(r-b.v))b=x;
+ return {name:b.name,err:Math.abs(r-b.v)};
+}
+function gridSpec(){
+ const r=rect();if(!r||r.w<=0||r.h<=0)return null;
+ const d=$('drive').value;let cell,cols,rows;
+ if(d==='cols'){cols=Math.max(1,+$('cols').value||1);cell=r.w/cols;rows=Math.max(1,Math.round(r.h/cell))}
+ else if(d==='rows'){rows=Math.max(1,+$('rows').value||1);cell=r.h/rows;cols=Math.max(1,Math.round(r.w/cell))}
+ else{cell=Math.max(1,+$('cell').value||1);cols=Math.max(1,Math.round(r.w/cell));rows=Math.max(1,Math.round(r.h/cell))}
+ return{cell,cols,rows};
+}
+function mmSpec(){
+ const r=rect(),g=gridSpec(),known=+$('knownMM').value;
+ if(!r||!g||!known||known<=0)return null;
+ let mmPerPx,wmm,hmm;
+ if($('knownSide').value==='width'){mmPerPx=known/r.w;wmm=known;hmm=r.h*mmPerPx}
+ else{mmPerPx=known/r.h;hmm=known;wmm=r.w*mmPerPx}
+ return{mmPerPx,wmm,hmm,cellmm:g.cell*mmPerPx};
+}
+function setMode(m){
+ mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+ if(m==='sides'){sideStep=0;$('status').textContent='Click LEFT limit'}
+ else if(m==='landmark')$('status').textContent='Click a feature'
+ else if(m==='measure')$('status').textContent=pendingMeasure?'Click measurement end':'Click measurement start'
+ else $('status').textContent='Pan image';
+}
+function updateMetrics(){
+ const r=rect(),g=gridSpec(),mm=mmSpec();
+ $('areaMetric').textContent=r?`${r.w.toFixed(1)} × ${r.h.toFixed(1)} px`:'—';
+ if(r&&r.h){
+   const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+   $('ratioMetric').textContent=`${ratio.toFixed(3)} : 1`;
+   $('ratioHint').textContent=`W/H = ${ratio.toFixed(3)} · H/W = ${(1/ratio).toFixed(3)} · ≈ ${frac.n}:${frac.d} · nearest familiar ratio: ${common.name}`;
+ }else{$('ratioMetric').textContent='—';$('ratioHint').textContent=''}
+ $('cellMetric').textContent=g?(mm?`${g.cell.toFixed(2)} px · ${mm.cellmm.toFixed(2)} mm`:`${g.cell.toFixed(2)} px`):'—';
+ $('gridMetric').textContent=g?`${g.cols} × ${g.rows}`:'—';
+ $('realMetric').textContent=mm?`${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`:'—';
+ updateLandmarks(mm);
+ updateMeasureResults(mm);
+}
+function updateLandmarks(mm){
+ const box=$('results');box.innerHTML='';
+ const r=rect();
+ if(!marks.length){box.innerHTML='<div class="small">No landmarks yet.</div>';return}
+ marks.forEach((m,i)=>{
+   const d=document.createElement('div');d.className='landmark';
+   let html=`<b>Landmark ${i+1}</b>`;
+   if(r){
+     const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+     html+=`<div class="metric">x = ${(u*100).toFixed(1)}% ≈ ${fx.n}/${fx.d} W</div>`;
+     html+=`<div class="metric">y = ${(v*100).toFixed(1)}% ≈ ${fy.n}/${fy.d} H</div>`;
+     if(mm){
+       const xmm=(m.x-r.x)*mm.mmPerPx,ymm=(m.y-r.y)*mm.mmPerPx;
+       html+=`<div class="metric">${xmm.toFixed(1)} mm from left · ${ymm.toFixed(1)} mm from top</div>`;
+     }
+   } else html+=`<div class="small">Define the four product limits first.</div>`;
+   html+=`<div class="landmark-controls">
+     <label><input type="checkbox" data-mark="${i}" data-axis="x" ${m.axisX?'checked':''}> X axis</label>
+     <label><input type="checkbox" data-mark="${i}" data-axis="y" ${m.axisY?'checked':''}> Y axis</label>
+   </div>`;
+   d.innerHTML=html;box.appendChild(d);
+ });
+ box.querySelectorAll('input[data-mark]').forEach(inp=>{
+   inp.addEventListener('change',()=>{
+     const i=+inp.dataset.mark;
+     if(inp.dataset.axis==='x')marks[i].axisX=inp.checked;
+     else marks[i].axisY=inp.checked;
+     draw();
+   });
+ });
+}
+function snapPointToGrid(p){
+ const r=rect(),g=gridSpec();
+ if(!r||!g)return p;
+ const ix=Math.round((p.x-r.x)/g.cell);
+ const iy=Math.round((p.y-r.y)/g.cell);
+ return {
+   x:r.x+ix*g.cell,
+   y:r.y+iy*g.cell
+ };
+}
+function updateMeasureResults(mm){
+ const box=$('measureResults');box.innerHTML='';
+ if(!measures.length){
+   box.innerHTML='<div class="small">No measurements yet.</div>';
+   return;
+ }
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y;
+   const dpx=Math.hypot(dx,dy);
+   const el=document.createElement('div');
+   el.className='measurement';
+   let txt=`<b>Measurement ${i+1}</b><div class="metric">${dpx.toFixed(2)} px`;
+   if(mm) txt+=` · ${(dpx*mm.mmPerPx).toFixed(2)} mm`;
+   txt+='</div>';
+   if(mm){
+     txt+=`<div class="metric">ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm</div>`;
+   } else {
+     txt+=`<div class="metric">ΔX ${Math.abs(dx).toFixed(2)} px · ΔY ${Math.abs(dy).toFixed(2)} px</div>`;
+   }
+   if(m.snapped) txt+='<div class="small">Snapped to square-grid intersections</div>';
+   el.innerHTML=txt;box.appendChild(el);
+ });
+}
+function draw(){
+ const {w,h}=size();ctx.clearRect(0,0,w,h);ctx.fillStyle='#dfe3e6';ctx.fillRect(0,0,w,h);
+ if(img){const s=baseScale*zoom;ctx.drawImage(img,imgX,imgY,img.width*s,img.height*s)}
+ const r=rect();
+ if(r){
+   const a=i2s(r.x,r.y),b=i2s(r.x+r.w,r.y+r.h),g=gridSpec();
+   ctx.save();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
+   if(g){
+     const cell=g.cell*baseScale*zoom;ctx.globalAlpha=+$('opacity').value/100;ctx.strokeStyle='#00a67d';ctx.lineWidth=1.1;
+     if($('extendGrid').checked){
+       const imgTL=i2s(0,0), imgBR=i2s(img.width,img.height);
+       const left=Math.max(0,imgTL.x), right=Math.min(w,imgBR.x);
+       const top=Math.max(0,imgTL.y), bottom=Math.min(h,imgBR.y);
+       let startX=a.x;
+       while(startX-cell>=left)startX-=cell;
+       let startY=a.y;
+       while(startY-cell>=top)startY-=cell;
+       for(let x=startX;x<=right+.5;x+=cell){ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke()}
+       for(let y=startY;y<=bottom+.5;y+=cell){ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke()}
+     }else{
+       for(let i=0;i<=g.cols;i++){const x=a.x+i*cell;if(x>b.x+.5)break;ctx.beginPath();ctx.moveTo(x,a.y);ctx.lineTo(x,b.y);ctx.stroke()}
+       for(let j=0;j<=g.rows;j++){const y=a.y+j*cell;if(y>b.y+.5)break;ctx.beginPath();ctx.moveTo(a.x,y);ctx.lineTo(b.x,y);ctx.stroke()}
+     }
+     ctx.globalAlpha=1;
+   }
+   if($('centers').checked){
+     ctx.strokeStyle='#f59e0b';ctx.lineWidth=1.7;ctx.setLineDash([7,5]);ctx.beginPath();
+     ctx.moveTo((a.x+b.x)/2,a.y);ctx.lineTo((a.x+b.x)/2,b.y);ctx.moveTo(a.x,(a.y+b.y)/2);ctx.lineTo(b.x,(a.y+b.y)/2);ctx.stroke();ctx.setLineDash([]);
+   }
+   ctx.restore();
+ }
+ // partial guides
+ if(!ready()){
+   ctx.save();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;
+   if(sides.left!==null){let p=i2s(sides.left,0);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   if(sides.right!==null){let p=i2s(sides.right,0);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   if(sides.top!==null){let p=i2s(0,sides.top);ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   if(sides.bottom!==null){let p=i2s(0,sides.bottom);ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   ctx.restore();
+ }
+ // landmark axes
+ marks.forEach((m,i)=>{
+   const p=i2s(m.x,m.y);
+   ctx.save();
+   ctx.strokeStyle='#e5484d';ctx.lineWidth=1.2;ctx.setLineDash([5,4]);ctx.globalAlpha=.8;
+   if(m.axisX){ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   if(m.axisY){ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   ctx.restore();
+   ctx.fillStyle='#e5484d';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#fff';ctx.font='10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,p.x,p.y);
+ });
+ // measurements
+ measures.forEach((m,i)=>{
+   const a=i2s(m.a.x,m.a.y),b=i2s(m.b.x,m.b.y);
+   ctx.save();ctx.strokeStyle='#7c3aed';ctx.fillStyle='#7c3aed';ctx.lineWidth=2;
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+   [a,b].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill()});
+   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+   const mm=mmSpec(),dist=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(dist*mm.mmPerPx).toFixed(1)} mm`:`${dist.toFixed(1)} px`;
+   ctx.font='12px system-ui';ctx.textAlign='center';ctx.textBaseline='bottom';
+   const tw=ctx.measureText(label).width;ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(mx-tw/2-4,my-18,tw+8,17);
+   ctx.fillStyle='#111';ctx.fillText(label,mx,my-4);ctx.restore();
+ });
+ if(pendingMeasure){
+   const a=i2s(pendingMeasure.x,pendingMeasure.y);
+   ctx.save();ctx.fillStyle='#7c3aed';ctx.beginPath();ctx.arc(a.x,a.y,5,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
+ updateMetrics();
+}
+
+function renderReportImage(){
+ if(!img)return null;
+ const out=document.createElement('canvas');
+ out.width=img.width;out.height=img.height;
+ const c=out.getContext('2d');
+ c.drawImage(img,0,0);
+
+ const r=rect(),g=gridSpec(),mm=mmSpec();
+ if(r&&g){
+   c.save();
+   c.strokeStyle='#1677ff';
+   c.lineWidth=Math.max(2,img.width/900);
+   c.strokeRect(r.x,r.y,r.w,r.h);
+
+   c.globalAlpha=+$('opacity').value/100;
+   c.strokeStyle='#00a67d';
+   c.lineWidth=Math.max(1,img.width/1400);
+
+   if($('extendGrid').checked){
+     let startX=r.x;
+     while(startX-g.cell>=0)startX-=g.cell;
+     let startY=r.y;
+     while(startY-g.cell>=0)startY-=g.cell;
+     for(let x=startX;x<=img.width;x+=g.cell){c.beginPath();c.moveTo(x,0);c.lineTo(x,img.height);c.stroke()}
+     for(let y=startY;y<=img.height;y+=g.cell){c.beginPath();c.moveTo(0,y);c.lineTo(img.width,y);c.stroke()}
+   }else{
+     for(let i=0;i<=g.cols;i++){
+       const x=r.x+i*g.cell;if(x>r.x+r.w+.5)break;
+       c.beginPath();c.moveTo(x,r.y);c.lineTo(x,r.y+r.h);c.stroke();
+     }
+     for(let j=0;j<=g.rows;j++){
+       const y=r.y+j*g.cell;if(y>r.y+r.h+.5)break;
+       c.beginPath();c.moveTo(r.x,y);c.lineTo(r.x+r.w,y);c.stroke();
+     }
+   }
+   c.globalAlpha=1;
+
+   if($('centers').checked){
+     c.strokeStyle='#f59e0b';
+     c.lineWidth=Math.max(2,img.width/900);
+     c.setLineDash([img.width/120,img.width/160]);
+     c.beginPath();
+     c.moveTo(r.x+r.w/2,r.y);c.lineTo(r.x+r.w/2,r.y+r.h);
+     c.moveTo(r.x,r.y+r.h/2);c.lineTo(r.x+r.w,r.y+r.h/2);
+     c.stroke();c.setLineDash([]);
+   }
+   c.restore();
+ }
+
+ marks.forEach((m,i)=>{
+   c.save();
+   c.strokeStyle='#e5484d';c.fillStyle='#e5484d';
+   c.lineWidth=Math.max(1.5,img.width/1100);
+   c.setLineDash([img.width/150,img.width/190]);
+   if(m.axisX){c.beginPath();c.moveTo(0,m.y);c.lineTo(img.width,m.y);c.stroke()}
+   if(m.axisY){c.beginPath();c.moveTo(m.x,0);c.lineTo(m.x,img.height);c.stroke()}
+   c.setLineDash([]);
+   const rad=Math.max(6,img.width/180);
+   c.beginPath();c.arc(m.x,m.y,rad,0,Math.PI*2);c.fill();
+   c.fillStyle='#fff';c.font=`${Math.max(12,img.width/75)}px system-ui`;
+   c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),m.x,m.y);
+   c.restore();
+ });
+
+ measures.forEach((m,i)=>{
+   c.save();c.strokeStyle='#7c3aed';c.fillStyle='#7c3aed';
+   c.lineWidth=Math.max(2,img.width/900);
+   c.beginPath();c.moveTo(m.a.x,m.a.y);c.lineTo(m.b.x,m.b.y);c.stroke();
+   const rad=Math.max(5,img.width/210);
+   [m.a,m.b].forEach(p=>{c.beginPath();c.arc(p.x,p.y,rad,0,Math.PI*2);c.fill()});
+   const dist=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(dist*mm.mmPerPx).toFixed(1)} mm`:`${dist.toFixed(1)} px`;
+   const mx=(m.a.x+m.b.x)/2,my=(m.a.y+m.b.y)/2;
+   c.font=`${Math.max(13,img.width/70)}px system-ui`;
+   const tw=c.measureText(label).width;
+   c.fillStyle='rgba(255,255,255,.9)';
+   c.fillRect(mx-tw/2-7,my-28,tw+14,24);
+   c.fillStyle='#111';c.textAlign='center';c.textBaseline='middle';c.fillText(label,mx,my-16);
+   c.restore();
+ });
+ return out.toDataURL('image/jpeg',.92);
+}
+function esc(s){
+ return String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function buildReportHTML(){
+ const r=rect(),g=gridSpec(),mm=mmSpec(),imageURL=renderReportImage();
+ if(!img||!r||!g||!imageURL)return null;
+ const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+ const now=new Date();
+ const dateText=now.toLocaleDateString();
+
+ let landmarkRows='';
+ marks.forEach((m,i)=>{
+   const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+   let pos=`${(u*100).toFixed(1)}% W (≈ ${fx.n}/${fx.d}), ${(v*100).toFixed(1)}% H (≈ ${fy.n}/${fy.d})`;
+   let real='—';
+   if(mm) real=`${((m.x-r.x)*mm.mmPerPx).toFixed(1)} mm left, ${((m.y-r.y)*mm.mmPerPx).toFixed(1)} mm top`;
+   let axes=[m.axisX?'X':'',m.axisY?'Y':''].filter(Boolean).join(' + ')||'—';
+   landmarkRows+=`<tr><td>${i+1}</td><td>${esc(pos)}</td><td>${esc(real)}</td><td>${axes}</td></tr>`;
+ });
+ if(!landmarkRows)landmarkRows='<tr><td colspan="4">No landmarks</td></tr>';
+
+ let measureRows='';
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y,d=Math.hypot(dx,dy);
+   const dist=mm?`${(d*mm.mmPerPx).toFixed(2)} mm`:`${d.toFixed(2)} px`;
+   const deltas=mm?`ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm`:`ΔX ${Math.abs(dx).toFixed(2)} px · ΔY ${Math.abs(dy).toFixed(2)} px`;
+   measureRows+=`<tr><td>${i+1}</td><td>${dist}</td><td>${deltas}</td><td>${m.snapped?'Yes':'No'}</td></tr>`;
+ });
+ if(!measureRows)measureRows='<tr><td colspan="4">No measurements</td></tr>';
+
+ const realDims=mm?`${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`:'Not calibrated';
+ const cell=mm?`${mm.cellmm.toFixed(2)} mm (${g.cell.toFixed(2)} px)`:`${g.cell.toFixed(2)} px`;
+
+ return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Product analysis report</title>
+<style>
+@page{size:176mm 250mm;margin:12mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#161616;font-size:8.5pt;line-height:1.35}
+.page{width:152mm;min-height:226mm;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:.35mm solid #111;padding-bottom:4mm;margin-bottom:5mm}
+h1{font-size:16pt;margin:0;font-weight:700} .meta{font-size:7.5pt;color:#666;text-align:right}
+figure{margin:0 0 5mm} figure img{width:100%;max-height:94mm;object-fit:contain;background:#eee;display:block}
+.caption{font-size:7pt;color:#666;margin-top:1.5mm}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5mm;margin-bottom:5mm}
+.metric{border-top:.25mm solid #aaa;padding-top:2mm}.label{font-size:6.5pt;text-transform:uppercase;letter-spacing:.05em;color:#777}.value{font-size:10pt;font-weight:650;margin-top:.7mm}
+h2{font-size:9pt;margin:5mm 0 2mm;border-bottom:.2mm solid #bbb;padding-bottom:1mm}
+table{width:100%;border-collapse:collapse;font-size:7.2pt}th{text-align:left;color:#666;font-weight:600;border-bottom:.25mm solid #999;padding:1.5mm 1mm}td{border-bottom:.15mm solid #ddd;padding:1.5mm 1mm;vertical-align:top}
+footer{margin-top:5mm;padding-top:2mm;border-top:.2mm solid #bbb;font-size:6.5pt;color:#777}
+@media screen{body{background:#ddd;padding:20px}.page{background:#fff;padding:12mm;box-shadow:0 8px 30px rgba(0,0,0,.18);width:176mm;min-height:250mm}}
+@media print{.page{width:auto;min-height:auto}.no-print{display:none!important}}
+</style></head><body>
+<div class="page">
+<header><div><h1>Product Grid Analysis</h1><div>Geometric proportion & landmark report</div></div><div class="meta">${esc(dateText)}<br>Aspect convention: W:H</div></header>
+<figure><img src="${imageURL}" alt="Annotated product analysis"><div class="caption">Annotated source photograph. Grid cells are square in image coordinates.</div></figure>
+<section class="metrics">
+<div class="metric"><div class="label">Aspect ratio</div><div class="value">${ratio.toFixed(3)} : 1</div><div>≈ ${frac.n}:${frac.d} · ${esc(common.name)}</div></div>
+<div class="metric"><div class="label">Inverse H/W</div><div class="value">${(1/ratio).toFixed(3)}</div><div>Reference only</div></div>
+<div class="metric"><div class="label">Grid</div><div class="value">${g.cols} × ${g.rows}</div><div>${cell} cells</div></div>
+<div class="metric"><div class="label">Dimensions</div><div class="value">${realDims}</div><div>${r.w.toFixed(0)} × ${r.h.toFixed(0)} px</div></div>
+</section>
+<h2>Landmarks</h2>
+<table><thead><tr><th>#</th><th>Normalized position</th><th>Calibrated position</th><th>Axes</th></tr></thead><tbody>${landmarkRows}</tbody></table>
+<h2>Measurements</h2>
+<table><thead><tr><th>#</th><th>Distance</th><th>Components</th><th>Grid snap</th></tr></thead><tbody>${measureRows}</tbody></table>
+<footer>Generated by Product Grid & Proportion Analyzer · W:H = width divided by height.</footer>
+</div></body></html>`;
+}
+
+function cropBoundsToGrid(){
+ const r=rect(),g=gridSpec();
+ if(!img||!r||!g)return null;
+ const cell=g.cell;
+ // Use the nearest grid lines that remain inside the source image.
+ const firstX=r.x + Math.ceil((0-r.x)/cell)*cell;
+ const lastX =r.x + Math.floor((img.width-r.x)/cell)*cell;
+ const firstY=r.y + Math.ceil((0-r.y)/cell)*cell;
+ const lastY =r.y + Math.floor((img.height-r.y)/cell)*cell;
+ if(lastX<=firstX||lastY<=firstY)return {x:0,y:0,w:img.width,h:img.height};
+ return {x:firstX,y:firstY,w:lastX-firstX,h:lastY-firstY};
+}
+function wrapCanvasText(c,text,maxWidth){
+ const words=String(text).split(/\s+/),lines=[];let line='';
+ for(const word of words){
+   const test=line?line+' '+word:word;
+   if(c.measureText(test).width>maxWidth&&line){lines.push(line);line=word}
+   else line=test;
+ }
+ if(line)lines.push(line);
+ return lines;
+}
+function exportAnnotatedPNG(){
+ if(!img||!rect()||!gridSpec()){
+   alert('Load an image and define the four product limits before exporting PNG.');
+   return;
+ }
+ const crop=cropBoundsToGrid(),r=rect(),g=gridSpec(),mm=mmSpec();
+ const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+
+ const infoLines=[];
+ infoLines.push(`Aspect W:H  ${ratio.toFixed(3)}:1  ≈ ${frac.n}:${frac.d}  (${common.name})`);
+ infoLines.push(`Grid  ${g.cols} × ${g.rows}  ·  cell ${mm?mm.cellmm.toFixed(2)+' mm':g.cell.toFixed(2)+' px'}`);
+ if(mm) infoLines.push(`Product dimensions  ${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`);
+
+ marks.forEach((m,i)=>{
+   const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+   let s=`L${i+1}: x ${(u*100).toFixed(1)}% ≈ ${fx.n}/${fx.d} W · y ${(v*100).toFixed(1)}% ≈ ${fy.n}/${fy.d} H`;
+   if(mm)s+=` · ${((m.x-r.x)*mm.mmPerPx).toFixed(1)} mm left · ${((m.y-r.y)*mm.mmPerPx).toFixed(1)} mm top`;
+   infoLines.push(s);
+ });
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y,d=Math.hypot(dx,dy);
+   let s=`M${i+1}: ${mm?(d*mm.mmPerPx).toFixed(2)+' mm':d.toFixed(2)+' px'}`;
+   if(mm)s+=` · ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm`;
+   infoLines.push(s);
+ });
+
+ const scale=1;
+ const pad=Math.max(18,Math.round(crop.w*.018));
+ const font=Math.max(16,Math.round(crop.w*.017));
+ const lineH=Math.round(font*1.45);
+
+ // Estimate text wrapping before sizing footer.
+ const test=document.createElement('canvas').getContext('2d');
+ test.font=`${font}px system-ui`;
+ let rendered=[];
+ for(const line of infoLines){
+   const wraps=wrapCanvasText(test,line,crop.w-pad*2);
+   rendered.push(...wraps);
+ }
+ const footerH=pad*2+lineH*(rendered.length+1);
+
+ const out=document.createElement('canvas');
+ out.width=Math.round(crop.w*scale);
+ out.height=Math.round((crop.h+footerH)*scale);
+ const c=out.getContext('2d');
+
+ // Cropped photo
+ c.drawImage(img,crop.x,crop.y,crop.w,crop.h,0,0,crop.w,crop.h);
+
+ // Grid
+ c.save();
+ c.globalAlpha=+$('opacity').value/100;
+ c.strokeStyle='#00a67d';
+ c.lineWidth=Math.max(1,crop.w/1300);
+ const startX=r.x + Math.ceil((crop.x-r.x)/g.cell)*g.cell;
+ const startY=r.y + Math.ceil((crop.y-r.y)/g.cell)*g.cell;
+ for(let x=startX;x<=crop.x+crop.w+.5;x+=g.cell){
+   const xx=x-crop.x;c.beginPath();c.moveTo(xx,0);c.lineTo(xx,crop.h);c.stroke();
+ }
+ for(let y=startY;y<=crop.y+crop.h+.5;y+=g.cell){
+   const yy=y-crop.y;c.beginPath();c.moveTo(0,yy);c.lineTo(crop.w,yy);c.stroke();
+ }
+ c.restore();
+
+ // Product limits
+ c.save();c.strokeStyle='#1677ff';c.lineWidth=Math.max(2,crop.w/900);
+ c.strokeRect(r.x-crop.x,r.y-crop.y,r.w,r.h);c.restore();
+
+ // Center axes
+ if($('centers').checked){
+   c.save();c.strokeStyle='#f59e0b';c.lineWidth=Math.max(2,crop.w/1000);
+   c.setLineDash([crop.w/120,crop.w/170]);
+   c.beginPath();
+   c.moveTo(r.x+r.w/2-crop.x,r.y-crop.y);c.lineTo(r.x+r.w/2-crop.x,r.y+r.h-crop.y);
+   c.moveTo(r.x-crop.x,r.y+r.h/2-crop.y);c.lineTo(r.x+r.w-crop.x,r.y+r.h/2-crop.y);
+   c.stroke();c.restore();
+ }
+
+ // Landmarks and axes
+ marks.forEach((m,i)=>{
+   const x=m.x-crop.x,y=m.y-crop.y;
+   if(x<0||x>crop.w||y<0||y>crop.h)return;
+   c.save();c.strokeStyle='#e5484d';c.fillStyle='#e5484d';c.lineWidth=Math.max(1.5,crop.w/1100);
+   c.setLineDash([crop.w/150,crop.w/190]);
+   if(m.axisX){c.beginPath();c.moveTo(0,y);c.lineTo(crop.w,y);c.stroke()}
+   if(m.axisY){c.beginPath();c.moveTo(x,0);c.lineTo(x,crop.h);c.stroke()}
+   c.setLineDash([]);
+   const rad=Math.max(7,crop.w/180);c.beginPath();c.arc(x,y,rad,0,Math.PI*2);c.fill();
+   c.fillStyle='#fff';c.font=`${Math.max(12,crop.w/75)}px system-ui`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),x,y);
+   c.restore();
+ });
+
+ // Measurements
+ measures.forEach((m,i)=>{
+   const ax=m.a.x-crop.x,ay=m.a.y-crop.y,bx=m.b.x-crop.x,by=m.b.y-crop.y;
+   c.save();c.strokeStyle='#7c3aed';c.fillStyle='#7c3aed';c.lineWidth=Math.max(2,crop.w/900);
+   c.beginPath();c.moveTo(ax,ay);c.lineTo(bx,by);c.stroke();
+   const rad=Math.max(5,crop.w/220);
+   [[ax,ay],[bx,by]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,rad,0,Math.PI*2);c.fill()});
+   const d=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(d*mm.mmPerPx).toFixed(1)} mm`:`${d.toFixed(1)} px`;
+   const mx=(ax+bx)/2,my=(ay+by)/2;
+   c.font=`${Math.max(13,crop.w/72)}px system-ui`;const tw=c.measureText(label).width;
+   c.fillStyle='rgba(255,255,255,.92)';c.fillRect(mx-tw/2-6,my-25,tw+12,22);
+   c.fillStyle='#111';c.textAlign='center';c.textBaseline='middle';c.fillText(label,mx,my-14);
+   c.restore();
+ });
+
+ // Embedded data footer
+ c.fillStyle='#fff';c.fillRect(0,crop.h,crop.w,footerH);
+ c.fillStyle='#111';c.font=`600 ${Math.round(font*1.08)}px system-ui`;
+ c.textAlign='left';c.textBaseline='top';
+ c.fillText('Product Grid Analysis',pad,crop.h+pad);
+ c.font=`${font}px system-ui`;
+ let yy=crop.h+pad+lineH;
+ rendered.forEach(line=>{c.fillText(line,pad,yy);yy+=lineH});
+
+ out.toBlob(blob=>{
+   if(!blob){alert('Could not create PNG.');return}
+   const url=URL.createObjectURL(blob);
+   const a=document.createElement('a');
+   a.href=url;a.download='product-grid-analysis.png';
+   document.body.appendChild(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1500);
+ },'image/png');
+}
+
+function exportB5Report(){
+ const report=buildReportHTML();
+ if(!report){
+   alert('Load an image and define the four product limits before exporting the report.');
+   return;
+ }
+ const win=window.open('','_blank');
+ if(!win){
+   alert('The browser blocked the report window. Allow pop-ups for this page and try again.');
+   return;
+ }
+ win.document.open();win.document.write(report);win.document.close();
+ setTimeout(()=>{win.focus();win.print()},450);
+}
+
+canvas.addEventListener('pointerdown',e=>{
+ const rr=canvas.getBoundingClientRect(),x=e.clientX-rr.left,y=e.clientY-rr.top;
+ if(mode==='pan'){drag=true;lx=e.clientX;ly=e.clientY;canvas.setPointerCapture(e.pointerId);return}
+ const p=s2i(x,y);
+ if(mode==='sides'){
+   if(sideStep===0){sides.left=p.x;$('status').textContent='Click RIGHT limit';sideStep=1}
+   else if(sideStep===1){sides.right=p.x;$('status').textContent='Click TOP limit';sideStep=2}
+   else if(sideStep===2){sides.top=p.y;$('status').textContent='Click BOTTOM limit';sideStep=3}
+   else{sides.bottom=p.y;$('status').textContent='Four sides set';sideStep=4}
+ }else if(mode==='landmark')marks.push({...p,axisX:false,axisY:false});
+ else if(mode==='measure'){
+   const snapped=$('snapMeasure').checked;
+   const q=snapped?snapPointToGrid(p):p;
+   if(!pendingMeasure){
+     pendingMeasure=q;
+     $('status').textContent='Click measurement end';
+   }else{
+     measures.push({a:pendingMeasure,b:q,snapped});
+     pendingMeasure=null;
+     $('status').textContent='Click measurement start';
+   }
+ }
+ draw();
+});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;imgX+=e.clientX-lx;imgY+=e.clientY-ly;lx=e.clientX;ly=e.clientY;draw()});
+canvas.addEventListener('pointerup',e=>{drag=false;try{canvas.releasePointerCapture(e.pointerId)}catch{}});
+
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('setSides').onclick=()=>setMode('sides');
+$('resetSides').onclick=()=>{sides={left:null,right:null,top:null,bottom:null};sideStep=0;draw();setMode('sides')};
+$('undoMark').onclick=()=>{marks.pop();draw()};
+$('clearMarks').onclick=()=>{marks=[];draw()};
+$('undoMeasure').onclick=()=>{if(pendingMeasure)pendingMeasure=null;else measures.pop();draw()};
+$('clearMeasures').onclick=()=>{measures=[];pendingMeasure=null;draw()};
+$('fit').onclick=fit;
+$('exportReport').onclick=exportB5Report;
+$('exportPNG').onclick=exportAnnotatedPNG;
+
+$('drive').addEventListener('change',()=>{
+ const v=$('drive').value;
+ $('colsBox').style.display=v==='cols'?'block':'none';
+ $('rowsBox').style.display=v==='rows'?'block':'none';
+ $('cellBox').style.display=v==='cell'?'block':'none';
+ draw();
+});
+['cols','rows','cell','opacity','centers','extendGrid','knownSide','knownMM'].forEach(id=>$(id).addEventListener('input',()=>{
+ if(id==='opacity')$('opVal').textContent=$('opacity').value+'%';
+ draw();
+}));
+
+$('file').addEventListener('change',e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ const u=URL.createObjectURL(f),n=new Image();
+ n.onload=()=>{img=n;URL.revokeObjectURL(u);sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;fit();setMode('sides')};
+ n.src=u;
+});
+$('demo').onclick=()=>{
+ const off=document.createElement('canvas');off.width=1100;off.height=760;const c=off.getContext('2d');
+ c.fillStyle='#ece8df';c.fillRect(0,0,1100,760);
+ c.fillStyle='#b8b2a7';c.fillRect(180,170,740,420);
+ c.fillStyle='#242424';c.fillRect(220,210,660,340);
+ c.fillStyle='#111';c.fillRect(285,260,250,135);
+ c.fillStyle='#dadada';c.fillRect(590,255,190,78);
+ for(let i=0;i<3;i++){c.fillStyle='#aaa';c.beginPath();c.arc(610+i*70,430,28,0,Math.PI*2);c.fill()}
+ c.fillStyle='#6f6f6f';c.fillRect(215,570,90,18);c.fillRect(795,570,90,18);
+ const n=new Image();
+ n.onload=()=>{img=n;sides={left:180,right:920,top:170,bottom:590};marks=[{x:410,y:325,axisX:false,axisY:true},{x:610,y:430,axisX:true,axisY:false},{x:750,y:430,axisX:false,axisY:false}];measures=[];pendingMeasure=null;fit();setMode('pan');draw()};
+ n.src=off.toDataURL();
+};
+
+window.addEventListener('resize',resize);
+new ResizeObserver(resize).observe(workspace);
+$('opVal').textContent=$('opacity').value+'%';
+resize();setMode('pan');draw();
+})();
+</script>
+</body>
+</html>
