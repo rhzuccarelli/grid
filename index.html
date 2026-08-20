@@ -60,6 +60,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
   <div class="group">
     <h2>1 · Image</h2>
     <input id="file" type="file" accept="image/*">
+    <div class="small" style="margin-top:8px">Or paste an image with <b>Ctrl+V</b> / <b>Cmd+V</b>.</div>
     <div style="height:8px"></div>
     <button id="demo">Load demo product</button>
   </div>
@@ -178,6 +179,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
     <button id="exportReport" class="primary">Export B5 report / PDF</button>
     <div style="height:8px"></div>
     <button id="exportPNG">Export annotated PNG</button>
+    <div style="height:8px"></div>
+    <button id="copyPNG">Copy annotated PNG</button>
     <div class="small" style="margin-top:8px">PNG export crops to the nearest interior grid lines at the four image edges and embeds the analysis data in the exported image.</div>
   </div>
 
@@ -592,10 +595,10 @@ function wrapCanvasText(c,text,maxWidth){
  if(line)lines.push(line);
  return lines;
 }
-function exportAnnotatedPNG(){
+function createAnnotatedPNGCanvas(){
  if(!img||!rect()||!gridSpec()){
    alert('Load an image and define the four product limits before exporting PNG.');
-   return;
+   return null;
  }
  const crop=cropBoundsToGrid(),r=rect(),g=gridSpec(),mm=mmSpec();
  const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
@@ -709,14 +712,37 @@ function exportAnnotatedPNG(){
  let yy=crop.h+pad+lineH;
  rendered.forEach(line=>{c.fillText(line,pad,yy);yy+=lineH});
 
- out.toBlob(blob=>{
+ return out;
+}
+function canvasToPNGBlob(out){
+ return new Promise(resolve=>out.toBlob(resolve,'image/png'));
+}
+async function exportAnnotatedPNG(){
+ const out=createAnnotatedPNGCanvas();
+ if(!out)return;
+ const blob=await canvasToPNGBlob(out);
    if(!blob){alert('Could not create PNG.');return}
    const url=URL.createObjectURL(blob);
    const a=document.createElement('a');
    a.href=url;a.download='product-grid-analysis.png';
    document.body.appendChild(a);a.click();a.remove();
    setTimeout(()=>URL.revokeObjectURL(url),1500);
- },'image/png');
+}
+async function copyAnnotatedPNG(){
+ const out=createAnnotatedPNGCanvas();
+ if(!out)return;
+ if(!window.isSecureContext||!navigator.clipboard?.write||typeof ClipboardItem==='undefined'){
+   alert('This browser cannot copy images here. Open the app over HTTPS (or localhost), or use Export annotated PNG.');
+   return;
+ }
+ const blob=await canvasToPNGBlob(out);
+ if(!blob){alert('Could not create PNG.');return}
+ try{
+   await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+   $('status').textContent='Annotated PNG copied to clipboard';
+ }catch(err){
+   alert('The browser blocked clipboard access. Allow clipboard permission, or use Export annotated PNG.');
+ }
 }
 
 function exportB5Report(){
@@ -771,6 +797,7 @@ $('clearMeasures').onclick=()=>{measures=[];pendingMeasure=null;draw()};
 $('fit').onclick=fit;
 $('exportReport').onclick=exportB5Report;
 $('exportPNG').onclick=exportAnnotatedPNG;
+$('copyPNG').onclick=copyAnnotatedPNG;
 
 $('drive').addEventListener('change',()=>{
  const v=$('drive').value;
@@ -784,11 +811,23 @@ $('drive').addEventListener('change',()=>{
  draw();
 }));
 
+function loadImageFile(f,source='file'){
+ if(!f||!f.type.startsWith('image/'))return;
+ const u=URL.createObjectURL(f),n=new Image();
+ n.onload=()=>{img=n;URL.revokeObjectURL(u);sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;fit();setMode('sides');$('status').textContent=source==='clipboard'?'Image pasted — set the left product limit':'Image loaded — set the left product limit'};
+ n.onerror=()=>{URL.revokeObjectURL(u);alert('The image could not be loaded.')};
+ n.src=u;
+}
 $('file').addEventListener('change',e=>{
  const f=e.target.files&&e.target.files[0];if(!f)return;
- const u=URL.createObjectURL(f),n=new Image();
- n.onload=()=>{img=n;URL.revokeObjectURL(u);sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;fit();setMode('sides')};
- n.src=u;
+ loadImageFile(f);
+});
+window.addEventListener('paste',e=>{
+ const item=[...(e.clipboardData?.items||[])].find(entry=>entry.kind==='file'&&entry.type.startsWith('image/'));
+ if(!item)return;
+ const file=item.getAsFile();if(!file)return;
+ e.preventDefault();
+ loadImageFile(file,'clipboard');
 });
 $('demo').onclick=()=>{
  const off=document.createElement('canvas');off.width=1100;off.height=760;const c=off.getContext('2d');
