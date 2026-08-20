@@ -63,6 +63,17 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
     <div class="small" style="margin-top:8px">Or paste an image with <b>Ctrl+V</b> / <b>Cmd+V</b>.</div>
     <div style="height:8px"></div>
     <button id="demo">Load demo product</button>
+    <div style="height:12px"></div>
+    <label>Straighten image <span id="rotateVal" class="small">0.0°</span></label>
+    <input id="rotateAngle" type="range" min="-15" max="15" step="0.1" value="0">
+    <div style="height:8px"></div>
+    <div class="row">
+      <button id="rotateMinus">− 0.1°</button>
+      <button id="rotatePlus">+ 0.1°</button>
+    </div>
+    <div style="height:8px"></div>
+    <button id="rotateReset">Reset rotation</button>
+    <div class="small" style="margin-top:8px">Straighten the photograph before setting limits or measurements.</div>
   </div>
 
   <div class="group">
@@ -144,6 +155,17 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
     <label>Dimension <span class="small">mm</span></label>
     <input id="knownMM" type="number" min="0.001" step="0.1" placeholder="e.g. 300">
     <div class="small" style="margin-top:8px">Once one real dimension is known, the grid cell size and the other product dimension are calculated in millimetres.</div>
+    <div style="height:14px"></div>
+    <div class="small"><b>Or calibrate from a ruler/reference</b></div>
+    <div class="small" style="margin-top:5px">Draw between two known marks, then enter their real separation.</div>
+    <div style="height:8px"></div>
+    <label>Reference distance <span class="small">mm</span></label>
+    <input id="referenceMM" type="number" min="0.001" step="0.1" placeholder="e.g. 100">
+    <div style="height:8px"></div>
+    <button id="setReference">Set reference line</button>
+    <div style="height:8px"></div>
+    <button id="clearReference">Clear reference</button>
+    <div id="calibrationMetric" class="small" style="margin-top:8px">No reference line set.</div>
   </div>
 
   <div class="group">
@@ -227,6 +249,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
     <button data-mode="sides">Set 4 sides</button>
     <button data-mode="landmark">Landmark</button>
     <button data-mode="measure">Measure</button>
+    <button data-mode="calibrate">Scale reference</button>
     <button id="fit">Fit</button>
   </div>
   <div class="status" id="status">Load an image or demo</div>
@@ -237,17 +260,29 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 (()=>{
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),workspace=$('workspace');
-let img=null,baseScale=1,zoom=1,imgX=0,imgY=0;
+let img=null,sourceImg=null,baseScale=1,zoom=1,imgX=0,imgY=0;
 let mode='pan',sideStep=0;
 let sides={left:null,right:null,top:null,bottom:null};
 let marks=[];
 let measures=[];
 let pendingMeasure=null;
+let reference={a:null,b:null};
 let drag=false,lx=0,ly=0;
 
 function size(){const r=workspace.getBoundingClientRect();return{w:r.width,h:r.height}}
 function resize(){const {w,h}=size(),dpr=devicePixelRatio||1;canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
 function fit(){if(!img)return;const {w,h}=size();baseScale=Math.min(w/img.width,h/img.height)*.92;zoom=1;imgX=(w-img.width*baseScale)/2;imgY=(h-img.height*baseScale)/2;draw()}
+function resetAnalysis(){
+ sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;reference={a:null,b:null};sideStep=0;
+}
+function applyRotation(){
+ if(!sourceImg)return;
+ const degrees=+$('rotateAngle').value||0,rad=degrees*Math.PI/180;
+ const sw=sourceImg.width,sh=sourceImg.height,c=Math.abs(Math.cos(rad)),s=Math.abs(Math.sin(rad));
+ const out=document.createElement('canvas');out.width=Math.ceil(sw*c+sh*s);out.height=Math.ceil(sw*s+sh*c);
+ const oc=out.getContext('2d');oc.translate(out.width/2,out.height/2);oc.rotate(rad);oc.drawImage(sourceImg,-sw/2,-sh/2);
+ img=out;$('rotateVal').textContent=`${degrees.toFixed(1)}°`;resetAnalysis();fit();setMode('sides');
+}
 function s2i(x,y){const s=baseScale*zoom;return{x:(x-imgX)/s,y:(y-imgY)/s}}
 function i2s(x,y){const s=baseScale*zoom;return{x:imgX+x*s,y:imgY+y*s}}
 function ready(){return sides.left!==null&&sides.right!==null&&sides.top!==null&&sides.bottom!==null}
@@ -285,18 +320,26 @@ function gridSpec(){
  return{cell,cols,rows};
 }
 function mmSpec(){
- const r=rect(),g=gridSpec(),known=+$('knownMM').value;
- if(!r||!g||!known||known<=0)return null;
+ const r=rect(),g=gridSpec();
+ if(!r||!g)return null;
+ const refMM=+$('referenceMM').value,refPx=reference.a&&reference.b?Math.hypot(reference.b.x-reference.a.x,reference.b.y-reference.a.y):0;
+ if(refMM>0&&refPx>0){
+   const mmPerPx=refMM/refPx;
+   return{mmPerPx,wmm:r.w*mmPerPx,hmm:r.h*mmPerPx,cellmm:g.cell*mmPerPx,source:'reference'};
+ }
+ const known=+$('knownMM').value;
+ if(!known||known<=0)return null;
  let mmPerPx,wmm,hmm;
  if($('knownSide').value==='width'){mmPerPx=known/r.w;wmm=known;hmm=r.h*mmPerPx}
  else{mmPerPx=known/r.h;hmm=known;wmm=r.w*mmPerPx}
- return{mmPerPx,wmm,hmm,cellmm:g.cell*mmPerPx};
+ return{mmPerPx,wmm,hmm,cellmm:g.cell*mmPerPx,source:'product'};
 }
 function setMode(m){
  mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
  if(m==='sides'){sideStep=0;$('status').textContent='Click LEFT limit'}
  else if(m==='landmark')$('status').textContent='Click a feature'
  else if(m==='measure')$('status').textContent=pendingMeasure?'Click measurement end':'Click measurement start'
+ else if(m==='calibrate')$('status').textContent=reference.a&&!reference.b?'Click second reference mark':'Click first reference mark'
  else $('status').textContent='Pan image';
 }
 function updateMetrics(){
@@ -310,6 +353,8 @@ function updateMetrics(){
  $('cellMetric').textContent=g?(mm?`${g.cell.toFixed(2)} px · ${mm.cellmm.toFixed(2)} mm`:`${g.cell.toFixed(2)} px`):'—';
  $('gridMetric').textContent=g?`${g.cols} × ${g.rows}`:'—';
  $('realMetric').textContent=mm?`${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`:'—';
+ const refPx=reference.a&&reference.b?Math.hypot(reference.b.x-reference.a.x,reference.b.y-reference.a.y):0;
+ $('calibrationMetric').textContent=refPx?(+$('referenceMM').value>0?`Reference: ${refPx.toFixed(1)} px = ${+$('referenceMM').value} mm`:`Reference line: ${refPx.toFixed(1)} px — enter its distance in mm`):'No reference line set.';
  updateLandmarks(mm);
  updateMeasureResults(mm);
 }
@@ -444,6 +489,19 @@ function draw(){
  if(pendingMeasure){
    const a=i2s(pendingMeasure.x,pendingMeasure.y);
    ctx.save();ctx.fillStyle='#7c3aed';ctx.beginPath();ctx.arc(a.x,a.y,5,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
+ if(reference.a){
+   const a=i2s(reference.a.x,reference.a.y),b=reference.b?i2s(reference.b.x,reference.b.y):null;
+   ctx.save();ctx.strokeStyle='#00a6c7';ctx.fillStyle='#00a6c7';ctx.lineWidth=3;
+   if(b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}
+   [a,b].filter(Boolean).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill()});
+   if(b){
+     const px=Math.hypot(reference.b.x-reference.a.x,reference.b.y-reference.a.y),known=+$('referenceMM').value;
+     const label=known>0?`${known} mm reference`:`${px.toFixed(1)} px reference`;
+     ctx.font='12px system-ui';ctx.textAlign='center';ctx.textBaseline='bottom';
+     ctx.fillStyle='#006b80';ctx.fillText(label,(a.x+b.x)/2,(a.y+b.y)/2-5);
+   }
+   ctx.restore();
  }
  updateMetrics();
 }
@@ -796,6 +854,10 @@ canvas.addEventListener('pointerdown',e=>{
    else if(sideStep===2){sides.top=p.y;$('status').textContent='Click BOTTOM limit';sideStep=3}
    else{sides.bottom=p.y;$('status').textContent='Four sides set';sideStep=4}
  }else if(mode==='landmark')marks.push({...p,axisX:false,axisY:false});
+ else if(mode==='calibrate'){
+   if(!reference.a||reference.b){reference={a:p,b:null};$('status').textContent='Click second reference mark'}
+   else{reference.b=p;$('status').textContent='Reference set — enter its distance in mm'}
+ }
  else if(mode==='measure'){
    const snapped=$('snapMeasure').checked;
    const q=snapped?snapPointToGrid(p):p;
@@ -825,6 +887,8 @@ function nudgeSelectedEdge(direction,step=+$('fineStep').value){
 }
 $('fineMinus').onclick=()=>nudgeSelectedEdge(-1);
 $('finePlus').onclick=()=>nudgeSelectedEdge(1);
+$('setReference').onclick=()=>setMode('calibrate');
+$('clearReference').onclick=()=>{reference={a:null,b:null};draw();$('status').textContent='Reference calibration cleared'};
 $('undoMark').onclick=()=>{marks.pop();draw()};
 $('clearMarks').onclick=()=>{marks=[];draw()};
 $('undoMeasure').onclick=()=>{if(pendingMeasure)pendingMeasure=null;else measures.pop();draw()};
@@ -841,7 +905,7 @@ $('drive').addEventListener('change',()=>{
  $('cellBox').style.display=v==='cell'?'block':'none';
  draw();
 });
-['cols','rows','cell','opacity','centers','extendGrid','knownSide','knownMM'].forEach(id=>$(id).addEventListener('input',()=>{
+['cols','rows','cell','opacity','centers','extendGrid','knownSide','knownMM','referenceMM'].forEach(id=>$(id).addEventListener('input',()=>{
  if(id==='opacity')$('opVal').textContent=$('opacity').value+'%';
  draw();
 }));
@@ -849,7 +913,7 @@ $('drive').addEventListener('change',()=>{
 function loadImageFile(f,source='file'){
  if(!f||!f.type.startsWith('image/'))return;
  const u=URL.createObjectURL(f),n=new Image();
- n.onload=()=>{img=n;URL.revokeObjectURL(u);sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;fit();setMode('sides');$('status').textContent=source==='clipboard'?'Image pasted — set the left product limit':'Image loaded — set the left product limit'};
+ n.onload=()=>{sourceImg=n;img=n;URL.revokeObjectURL(u);$('rotateAngle').value=0;$('rotateVal').textContent='0.0°';resetAnalysis();fit();setMode('sides');$('status').textContent=source==='clipboard'?'Image pasted — straighten it or set the left product limit':'Image loaded — straighten it or set the left product limit'};
  n.onerror=()=>{URL.revokeObjectURL(u);alert('The image could not be loaded.')};
  n.src=u;
 }
@@ -864,6 +928,14 @@ window.addEventListener('paste',e=>{
  e.preventDefault();
  loadImageFile(file,'clipboard');
 });
+$('rotateAngle').addEventListener('input',applyRotation);
+function nudgeRotation(delta){
+ const input=$('rotateAngle'),next=Math.max(+input.min,Math.min(+input.max,(+input.value||0)+delta));
+ input.value=next.toFixed(1);applyRotation();
+}
+$('rotateMinus').onclick=()=>nudgeRotation(-.1);
+$('rotatePlus').onclick=()=>nudgeRotation(.1);
+$('rotateReset').onclick=()=>{$('rotateAngle').value=0;applyRotation()};
 window.addEventListener('keydown',e=>{
  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;
  const edge=$('fineEdge').value,vertical=edge==='left'||edge==='right';
@@ -886,7 +958,7 @@ $('demo').onclick=()=>{
  for(let i=0;i<3;i++){c.fillStyle='#aaa';c.beginPath();c.arc(610+i*70,430,28,0,Math.PI*2);c.fill()}
  c.fillStyle='#6f6f6f';c.fillRect(215,570,90,18);c.fillRect(795,570,90,18);
  const n=new Image();
- n.onload=()=>{img=n;sides={left:180,right:920,top:170,bottom:590};marks=[{x:410,y:325,axisX:false,axisY:true},{x:610,y:430,axisX:true,axisY:false},{x:750,y:430,axisX:false,axisY:false}];measures=[];pendingMeasure=null;fit();setMode('pan');draw()};
+ n.onload=()=>{sourceImg=n;img=n;$('rotateAngle').value=0;$('rotateVal').textContent='0.0°';sides={left:180,right:920,top:170,bottom:590};marks=[{x:410,y:325,axisX:false,axisY:true},{x:610,y:430,axisX:true,axisY:false},{x:750,y:430,axisX:false,axisY:false}];measures=[];pendingMeasure=null;reference={a:null,b:null};fit();setMode('pan');draw()};
  n.src=off.toDataURL();
 };
 
