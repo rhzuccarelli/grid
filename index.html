@@ -60,6 +60,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
   <div class="group">
     <h2>1 · Image</h2>
     <input id="file" type="file" accept="image/*">
+    <div class="small" style="margin-top:8px">Or paste an image with <b>Ctrl+V</b> / <b>Cmd+V</b>.</div>
     <div style="height:8px"></div>
     <button id="demo">Load demo product</button>
   </div>
@@ -199,11 +200,13 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 
   <div class="group">
     <h2>7 · Report</h2>
-    <div class="small">Generate an ISO5 analysis sheet with the annotated image, proportions, grid calibration, landmarks and measurements.</div>
+    <div class="small">Generate an ISO B5 analysis sheet with the annotated image, proportions, grid calibration, landmarks and measurements.</div>
     <div style="height:9px"></div>
     <button id="exportReport" class="primary">Export B5 report / PDF</button>
     <div style="height:8px"></div>
     <button id="exportPNG">Export annotated PNG</button>
+    <div style="height:8px"></div>
+    <button id="copyPNG">Copy annotated PNG</button>
     <div class="small" style="margin-top:8px">PNG export crops to the nearest interior grid lines at the four image edges and embeds the analysis data in the exported image.</div>
   </div>
 
@@ -246,7 +249,7 @@ function size(){const r=workspace.getBoundingClientRect();return{w:r.width,h:r.h
 function resize(){const {w,h}=size(),dpr=devicePixelRatio||1;canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
 function fit(){if(!img)return;const {w,h}=size();baseScale=Math.min(w/img.width,h/img.height)*.92;zoom=1;imgX=(w-img.width*baseScale)/2;imgY=(h-img.height*baseScale)/2;draw()}
 function s2i(x,y){const s=baseScale*zoom;return{x:(x-imgX)/s,y:(y-imgY)/s}}
-function i2s(x,y){const s=baseScale*zoom;return{x:imgX+q*s,y:imgY+y*s}}
+function i2s(x,y){const s=baseScale*zoom;return{x:imgX+x*s,y:imgY+y*s}}
 function ready(){return sides.left!==null&&sides.right!==null&&sides.top!==null&&sides.bottom!==null}
 function rect(){if(!ready())return null;const l=Math.min(sides.left,sides.right),r=Math.max(sides.left,sides.right),t=Math.min(sides.top,sides.bottom),b=Math.max(sides.top,sides.bottom);return{x:l,y:t,w:r-l,h:b-t}}
 function gcd(a,b){return b?gcd(b,a%b):a}
@@ -265,4 +268,633 @@ function commonRatioName(r){
    {v:3/2,name:'3:2'},
    {v:16/10,name:'16:10'},
    {v:16/9,name:'16:9'},
-   {v:(1+
+   {v:(1+Math.sqrt(5))/2,name:'φ golden ratio'},
+   {v:Math.sqrt(2),name:'√2'},
+   {v:5/4,name:'5:4'},
+   {v:6/5,name:'6:5'}
+ ];
+ let b=refs[0];for(const x of refs)if(Math.abs(r-x.v)<Math.abs(r-b.v))b=x;
+ return {name:b.name,err:Math.abs(r-b.v)};
+}
+function gridSpec(){
+ const r=rect();if(!r||r.w<=0||r.h<=0)return null;
+ const d=$('drive').value;let cell,cols,rows;
+ if(d==='cols'){cols=Math.max(1,+$('cols').value||1);cell=r.w/cols;rows=Math.max(1,Math.round(r.h/cell))}
+ else if(d==='rows'){rows=Math.max(1,+$('rows').value||1);cell=r.h/rows;cols=Math.max(1,Math.round(r.w/cell))}
+ else{cell=Math.max(1,+$('cell').value||1);cols=Math.max(1,Math.round(r.w/cell));rows=Math.max(1,Math.round(r.h/cell))}
+ return{cell,cols,rows};
+}
+function mmSpec(){
+ const r=rect(),g=gridSpec(),known=+$('knownMM').value;
+ if(!r||!g||!known||known<=0)return null;
+ let mmPerPx,wmm,hmm;
+ if($('knownSide').value==='width'){mmPerPx=known/r.w;wmm=known;hmm=r.h*mmPerPx}
+ else{mmPerPx=known/r.h;hmm=known;wmm=r.w*mmPerPx}
+ return{mmPerPx,wmm,hmm,cellmm:g.cell*mmPerPx};
+}
+function setMode(m){
+ mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+ if(m==='sides'){sideStep=0;$('status').textContent='Click LEFT limit'}
+ else if(m==='landmark')$('status').textContent='Click a feature'
+ else if(m==='measure')$('status').textContent=pendingMeasure?'Click measurement end':'Click measurement start'
+ else $('status').textContent='Pan image';
+}
+function updateMetrics(){
+ const r=rect(),g=gridSpec(),mm=mmSpec();
+ $('areaMetric').textContent=r?`${r.w.toFixed(1)} × ${r.h.toFixed(1)} px`:'—';
+ if(r&&r.h){
+   const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+   $('ratioMetric').textContent=`${ratio.toFixed(3)} : 1`;
+   $('ratioHint').textContent=`W/H = ${ratio.toFixed(3)} · H/W = ${(1/ratio).toFixed(3)} · ≈ ${frac.n}:${frac.d} · nearest familiar ratio: ${common.name}`;
+ }else{$('ratioMetric').textContent='—';$('ratioHint').textContent=''}
+ $('cellMetric').textContent=g?(mm?`${g.cell.toFixed(2)} px · ${mm.cellmm.toFixed(2)} mm`:`${g.cell.toFixed(2)} px`):'—';
+ $('gridMetric').textContent=g?`${g.cols} × ${g.rows}`:'—';
+ $('realMetric').textContent=mm?`${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`:'—';
+ updateLandmarks(mm);
+ updateMeasureResults(mm);
+}
+function updateLandmarks(mm){
+ const box=$('results');box.innerHTML='';
+ const r=rect();
+ if(!marks.length){box.innerHTML='<div class="small">No landmarks yet.</div>';return}
+ marks.forEach((m,i)=>{
+   const d=document.createElement('div');d.className='landmark';
+   let html=`<b>Landmark ${i+1}</b>`;
+   if(r){
+     const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+     html+=`<div class="metric">x = ${(u*100).toFixed(1)}% ≈ ${fx.n}/${fx.d} W</div>`;
+     html+=`<div class="metric">y = ${(v*100).toFixed(1)}% ≈ ${fy.n}/${fy.d} H</div>`;
+     if(mm){
+       const xmm=(m.x-r.x)*mm.mmPerPx,ymm=(m.y-r.y)*mm.mmPerPx;
+       html+=`<div class="metric">${xmm.toFixed(1)} mm from left · ${ymm.toFixed(1)} mm from top</div>`;
+     }
+   } else html+=`<div class="small">Define the four product limits first.</div>`;
+   html+=`<div class="landmark-controls">
+     <label><input type="checkbox" data-mark="${i}" data-axis="x" ${m.axisX?'checked':''}> X axis</label>
+     <label><input type="checkbox" data-mark="${i}" data-axis="y" ${m.axisY?'checked':''}> Y axis</label>
+   </div>`;
+   d.innerHTML=html;box.appendChild(d);
+ });
+ box.querySelectorAll('input[data-mark]').forEach(inp=>{
+   inp.addEventListener('change',()=>{
+     const i=+inp.dataset.mark;
+     if(inp.dataset.axis==='x')marks[i].axisX=inp.checked;
+     else marks[i].axisY=inp.checked;
+     draw();
+   });
+ });
+}
+function snapPointToGrid(p){
+ const r=rect(),g=gridSpec();
+ if(!r||!g)return p;
+ const ix=Math.round((p.x-r.x)/g.cell);
+ const iy=Math.round((p.y-r.y)/g.cell);
+ return {
+   x:r.x+ix*g.cell,
+   y:r.y+iy*g.cell
+ };
+}
+function updateMeasureResults(mm){
+ const box=$('measureResults');box.innerHTML='';
+ if(!measures.length){
+   box.innerHTML='<div class="small">No measurements yet.</div>';
+   return;
+ }
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y;
+   const dpx=Math.hypot(dx,dy);
+   const el=document.createElement('div');
+   el.className='measurement';
+   let txt=`<b>Measurement ${i+1}</b><div class="metric">${dpx.toFixed(2)} px`;
+   if(mm) txt+=` · ${(dpx*mm.mmPerPx).toFixed(2)} mm`;
+   txt+='</div>';
+   if(mm){
+     txt+=`<div class="metric">ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm</div>`;
+   } else {
+     txt+=`<div class="metric">ΔX ${Math.abs(dx).toFixed(2)} px · ΔY ${Math.abs(dy).toFixed(2)} px</div>`;
+   }
+   if(m.snapped) txt+='<div class="small">Snapped to square-grid intersections</div>';
+   el.innerHTML=txt;box.appendChild(el);
+ });
+}
+function draw(){
+ const {w,h}=size();ctx.clearRect(0,0,w,h);ctx.fillStyle='#dfe3e6';ctx.fillRect(0,0,w,h);
+ if(img){const s=baseScale*zoom;ctx.drawImage(img,imgX,imgY,img.width*s,img.height*s)}
+ const r=rect();
+ if(r){
+   const a=i2s(r.x,r.y),b=i2s(r.x+r.w,r.y+r.h),g=gridSpec();
+   ctx.save();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
+   if(g){
+     const cell=g.cell*baseScale*zoom;ctx.globalAlpha=+$('opacity').value/100;ctx.strokeStyle='#00a67d';ctx.lineWidth=1.1;
+     if($('extendGrid').checked){
+       const imgTL=i2s(0,0), imgBR=i2s(img.width,img.height);
+       const left=Math.max(0,imgTL.x), right=Math.min(w,imgBR.x);
+       const top=Math.max(0,imgTL.y), bottom=Math.min(h,imgBR.y);
+       let startX=a.x;
+       while(startX-cell>=left)startX-=cell;
+       let startY=a.y;
+       while(startY-cell>=top)startY-=cell;
+       for(let x=startX;x<=right+.5;x+=cell){ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke()}
+       for(let y=startY;y<=bottom+.5;y+=cell){ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke()}
+     }else{
+       for(let i=0;i<=g.cols;i++){const x=a.x+i*cell;if(x>b.x+.5)break;ctx.beginPath();ctx.moveTo(x,a.y);ctx.lineTo(x,b.y);ctx.stroke()}
+       for(let j=0;j<=g.rows;j++){const y=a.y+j*cell;if(y>b.y+.5)break;ctx.beginPath();ctx.moveTo(a.x,y);ctx.lineTo(b.x,y);ctx.stroke()}
+     }
+     ctx.globalAlpha=1;
+   }
+   if($('centers').checked){
+     ctx.strokeStyle='#f59e0b';ctx.lineWidth=1.7;ctx.setLineDash([7,5]);ctx.beginPath();
+     ctx.moveTo((a.x+b.x)/2,a.y);ctx.lineTo((a.x+b.x)/2,b.y);ctx.moveTo(a.x,(a.y+b.y)/2);ctx.lineTo(b.x,(a.y+b.y)/2);ctx.stroke();ctx.setLineDash([]);
+   }
+   ctx.restore();
+ }
+ // partial guides
+ if(!ready()){
+   ctx.save();ctx.strokeStyle='#1677ff';ctx.lineWidth=2;
+   if(sides.left!==null){let p=i2s(sides.left,0);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   if(sides.right!==null){let p=i2s(sides.right,0);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   if(sides.top!==null){let p=i2s(0,sides.top);ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   if(sides.bottom!==null){let p=i2s(0,sides.bottom);ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   ctx.restore();
+ }
+ // landmark axes
+ marks.forEach((m,i)=>{
+   const p=i2s(m.x,m.y);
+   ctx.save();
+   ctx.strokeStyle='#e5484d';ctx.lineWidth=1.2;ctx.setLineDash([5,4]);ctx.globalAlpha=.8;
+   if(m.axisX){ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(w,p.y);ctx.stroke()}
+   if(m.axisY){ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
+   ctx.restore();
+   ctx.fillStyle='#e5484d';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#fff';ctx.font='10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,p.x,p.y);
+ });
+ // measurements
+ measures.forEach((m,i)=>{
+   const a=i2s(m.a.x,m.a.y),b=i2s(m.b.x,m.b.y);
+   ctx.save();ctx.strokeStyle='#7c3aed';ctx.fillStyle='#7c3aed';ctx.lineWidth=2;
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+   [a,b].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill()});
+   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+   const mm=mmSpec(),dist=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(dist*mm.mmPerPx).toFixed(1)} mm`:`${dist.toFixed(1)} px`;
+   ctx.font='12px system-ui';ctx.textAlign='center';ctx.textBaseline='bottom';
+   const tw=ctx.measureText(label).width;ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(mx-tw/2-4,my-18,tw+8,17);
+   ctx.fillStyle='#111';ctx.fillText(label,mx,my-4);ctx.restore();
+ });
+ if(pendingMeasure){
+   const a=i2s(pendingMeasure.x,pendingMeasure.y);
+   ctx.save();ctx.fillStyle='#7c3aed';ctx.beginPath();ctx.arc(a.x,a.y,5,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
+ updateMetrics();
+}
+
+function renderReportImage(){
+ if(!img)return null;
+ const out=document.createElement('canvas');
+ out.width=img.width;out.height=img.height;
+ const c=out.getContext('2d');
+ c.drawImage(img,0,0);
+
+ const r=rect(),g=gridSpec(),mm=mmSpec();
+ if(r&&g){
+   c.save();
+   c.strokeStyle='#1677ff';
+   c.lineWidth=Math.max(2,img.width/900);
+   c.strokeRect(r.x,r.y,r.w,r.h);
+
+   c.globalAlpha=+$('opacity').value/100;
+   c.strokeStyle='#00a67d';
+   c.lineWidth=Math.max(1,img.width/1400);
+
+   if($('extendGrid').checked){
+     let startX=r.x;
+     while(startX-g.cell>=0)startX-=g.cell;
+     let startY=r.y;
+     while(startY-g.cell>=0)startY-=g.cell;
+     for(let x=startX;x<=img.width;x+=g.cell){c.beginPath();c.moveTo(x,0);c.lineTo(x,img.height);c.stroke()}
+     for(let y=startY;y<=img.height;y+=g.cell){c.beginPath();c.moveTo(0,y);c.lineTo(img.width,y);c.stroke()}
+   }else{
+     for(let i=0;i<=g.cols;i++){
+       const x=r.x+i*g.cell;if(x>r.x+r.w+.5)break;
+       c.beginPath();c.moveTo(x,r.y);c.lineTo(x,r.y+r.h);c.stroke();
+     }
+     for(let j=0;j<=g.rows;j++){
+       const y=r.y+j*g.cell;if(y>r.y+r.h+.5)break;
+       c.beginPath();c.moveTo(r.x,y);c.lineTo(r.x+r.w,y);c.stroke();
+     }
+   }
+   c.globalAlpha=1;
+
+   if($('centers').checked){
+     c.strokeStyle='#f59e0b';
+     c.lineWidth=Math.max(2,img.width/900);
+     c.setLineDash([img.width/120,img.width/160]);
+     c.beginPath();
+     c.moveTo(r.x+r.w/2,r.y);c.lineTo(r.x+r.w/2,r.y+r.h);
+     c.moveTo(r.x,r.y+r.h/2);c.lineTo(r.x+r.w,r.y+r.h/2);
+     c.stroke();c.setLineDash([]);
+   }
+   c.restore();
+ }
+
+ marks.forEach((m,i)=>{
+   c.save();
+   c.strokeStyle='#e5484d';c.fillStyle='#e5484d';
+   c.lineWidth=Math.max(1.5,img.width/1100);
+   c.setLineDash([img.width/150,img.width/190]);
+   if(m.axisX){c.beginPath();c.moveTo(0,m.y);c.lineTo(img.width,m.y);c.stroke()}
+   if(m.axisY){c.beginPath();c.moveTo(m.x,0);c.lineTo(m.x,img.height);c.stroke()}
+   c.setLineDash([]);
+   const rad=Math.max(6,img.width/180);
+   c.beginPath();c.arc(m.x,m.y,rad,0,Math.PI*2);c.fill();
+   c.fillStyle='#fff';c.font=`${Math.max(12,img.width/75)}px system-ui`;
+   c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),m.x,m.y);
+   c.restore();
+ });
+
+ measures.forEach((m,i)=>{
+   c.save();c.strokeStyle='#7c3aed';c.fillStyle='#7c3aed';
+   c.lineWidth=Math.max(2,img.width/900);
+   c.beginPath();c.moveTo(m.a.x,m.a.y);c.lineTo(m.b.x,m.b.y);c.stroke();
+   const rad=Math.max(5,img.width/210);
+   [m.a,m.b].forEach(p=>{c.beginPath();c.arc(p.x,p.y,rad,0,Math.PI*2);c.fill()});
+   const dist=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(dist*mm.mmPerPx).toFixed(1)} mm`:`${dist.toFixed(1)} px`;
+   const mx=(m.a.x+m.b.x)/2,my=(m.a.y+m.b.y)/2;
+   c.font=`${Math.max(13,img.width/70)}px system-ui`;
+   const tw=c.measureText(label).width;
+   c.fillStyle='rgba(255,255,255,.9)';
+   c.fillRect(mx-tw/2-7,my-28,tw+14,24);
+   c.fillStyle='#111';c.textAlign='center';c.textBaseline='middle';c.fillText(label,mx,my-16);
+   c.restore();
+ });
+ return out.toDataURL('image/jpeg',.92);
+}
+function esc(s){
+ return String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function buildReportHTML(){
+ const r=rect(),g=gridSpec(),mm=mmSpec(),imageURL=renderReportImage();
+ if(!img||!r||!g||!imageURL)return null;
+ const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+ const now=new Date();
+ const dateText=now.toLocaleDateString();
+
+ let landmarkRows='';
+ marks.forEach((m,i)=>{
+   const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+   let pos=`${(u*100).toFixed(1)}% W (≈ ${fx.n}/${fx.d}), ${(v*100).toFixed(1)}% H (≈ ${fy.n}/${fy.d})`;
+   let real='—';
+   if(mm) real=`${((m.x-r.x)*mm.mmPerPx).toFixed(1)} mm left, ${((m.y-r.y)*mm.mmPerPx).toFixed(1)} mm top`;
+   let axes=[m.axisX?'X':'',m.axisY?'Y':''].filter(Boolean).join(' + ')||'—';
+   landmarkRows+=`<tr><td>${i+1}</td><td>${esc(pos)}</td><td>${esc(real)}</td><td>${axes}</td></tr>`;
+ });
+ if(!landmarkRows)landmarkRows='<tr><td colspan="4">No landmarks</td></tr>';
+
+ let measureRows='';
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y,d=Math.hypot(dx,dy);
+   const dist=mm?`${(d*mm.mmPerPx).toFixed(2)} mm`:`${d.toFixed(2)} px`;
+   const deltas=mm?`ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm`:`ΔX ${Math.abs(dx).toFixed(2)} px · ΔY ${Math.abs(dy).toFixed(2)} px`;
+   measureRows+=`<tr><td>${i+1}</td><td>${dist}</td><td>${deltas}</td><td>${m.snapped?'Yes':'No'}</td></tr>`;
+ });
+ if(!measureRows)measureRows='<tr><td colspan="4">No measurements</td></tr>';
+
+ const realDims=mm?`${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`:'Not calibrated';
+ const cell=mm?`${mm.cellmm.toFixed(2)} mm (${g.cell.toFixed(2)} px)`:`${g.cell.toFixed(2)} px`;
+
+ return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Product analysis report</title>
+<style>
+@page{size:176mm 250mm;margin:12mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#161616;font-size:8.5pt;line-height:1.35}
+.page{width:152mm;min-height:226mm;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:.35mm solid #111;padding-bottom:4mm;margin-bottom:5mm}
+h1{font-size:16pt;margin:0;font-weight:700} .meta{font-size:7.5pt;color:#666;text-align:right}
+figure{margin:0 0 5mm} figure img{width:100%;max-height:94mm;object-fit:contain;background:#eee;display:block}
+.caption{font-size:7pt;color:#666;margin-top:1.5mm}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5mm;margin-bottom:5mm}
+.metric{border-top:.25mm solid #aaa;padding-top:2mm}.label{font-size:6.5pt;text-transform:uppercase;letter-spacing:.05em;color:#777}.value{font-size:10pt;font-weight:650;margin-top:.7mm}
+h2{font-size:9pt;margin:5mm 0 2mm;border-bottom:.2mm solid #bbb;padding-bottom:1mm}
+table{width:100%;border-collapse:collapse;font-size:7.2pt}th{text-align:left;color:#666;font-weight:600;border-bottom:.25mm solid #999;padding:1.5mm 1mm}td{border-bottom:.15mm solid #ddd;padding:1.5mm 1mm;vertical-align:top}
+footer{margin-top:5mm;padding-top:2mm;border-top:.2mm solid #bbb;font-size:6.5pt;color:#777}
+@media screen{body{background:#ddd;padding:20px}.page{background:#fff;padding:12mm;box-shadow:0 8px 30px rgba(0,0,0,.18);width:176mm;min-height:250mm}}
+@media print{.page{width:auto;min-height:auto}.no-print{display:none!important}}
+</style></head><body>
+<div class="page">
+<header><div><h1>Product Grid Analysis</h1><div>Geometric proportion & landmark report</div></div><div class="meta">${esc(dateText)}<br>Aspect convention: W:H</div></header>
+<figure><img src="${imageURL}" alt="Annotated product analysis"><div class="caption">Annotated source photograph. Grid cells are square in image coordinates.</div></figure>
+<section class="metrics">
+<div class="metric"><div class="label">Aspect ratio</div><div class="value">${ratio.toFixed(3)} : 1</div><div>≈ ${frac.n}:${frac.d} · ${esc(common.name)}</div></div>
+<div class="metric"><div class="label">Inverse H/W</div><div class="value">${(1/ratio).toFixed(3)}</div><div>Reference only</div></div>
+<div class="metric"><div class="label">Grid</div><div class="value">${g.cols} × ${g.rows}</div><div>${cell} cells</div></div>
+<div class="metric"><div class="label">Dimensions</div><div class="value">${realDims}</div><div>${r.w.toFixed(0)} × ${r.h.toFixed(0)} px</div></div>
+</section>
+<h2>Landmarks</h2>
+<table><thead><tr><th>#</th><th>Normalized position</th><th>Calibrated position</th><th>Axes</th></tr></thead><tbody>${landmarkRows}</tbody></table>
+<h2>Measurements</h2>
+<table><thead><tr><th>#</th><th>Distance</th><th>Components</th><th>Grid snap</th></tr></thead><tbody>${measureRows}</tbody></table>
+<footer>Generated by Product Grid & Proportion Analyzer · W:H = width divided by height.</footer>
+</div></body></html>`;
+}
+
+function cropBoundsToGrid(){
+ const r=rect(),g=gridSpec();
+ if(!img||!r||!g)return null;
+ const cell=g.cell;
+ // Use the nearest grid lines that remain inside the source image.
+ const firstX=r.x + Math.ceil((0-r.x)/cell)*cell;
+ const lastX =r.x + Math.floor((img.width-r.x)/cell)*cell;
+ const firstY=r.y + Math.ceil((0-r.y)/cell)*cell;
+ const lastY =r.y + Math.floor((img.height-r.y)/cell)*cell;
+ if(lastX<=firstX||lastY<=firstY)return {x:0,y:0,w:img.width,h:img.height};
+ return {x:firstX,y:firstY,w:lastX-firstX,h:lastY-firstY};
+}
+function wrapCanvasText(c,text,maxWidth){
+ const words=String(text).split(/\s+/),lines=[];let line='';
+ for(const word of words){
+   const test=line?line+' '+word:word;
+   if(c.measureText(test).width>maxWidth&&line){lines.push(line);line=word}
+   else line=test;
+ }
+ if(line)lines.push(line);
+ return lines;
+}
+function createAnnotatedPNGCanvas(){
+ if(!img||!rect()||!gridSpec()){
+   alert('Load an image and define the four product limits before exporting PNG.');
+   return null;
+ }
+ const crop=cropBoundsToGrid(),r=rect(),g=gridSpec(),mm=mmSpec();
+ const ratio=r.w/r.h,frac=nearestFraction(ratio,20),common=commonRatioName(ratio);
+
+ const infoLines=[];
+ infoLines.push(`Aspect W:H  ${ratio.toFixed(3)}:1  ≈ ${frac.n}:${frac.d}  (${common.name})`);
+ infoLines.push(`Grid  ${g.cols} × ${g.rows}  ·  cell ${mm?mm.cellmm.toFixed(2)+' mm':g.cell.toFixed(2)+' px'}`);
+ if(mm) infoLines.push(`Product dimensions  ${mm.wmm.toFixed(1)} × ${mm.hmm.toFixed(1)} mm`);
+
+ marks.forEach((m,i)=>{
+   const u=(m.x-r.x)/r.w,v=(m.y-r.y)/r.h,fx=nearestFraction(u,12),fy=nearestFraction(v,12);
+   let s=`L${i+1}: x ${(u*100).toFixed(1)}% ≈ ${fx.n}/${fx.d} W · y ${(v*100).toFixed(1)}% ≈ ${fy.n}/${fy.d} H`;
+   if(mm)s+=` · ${((m.x-r.x)*mm.mmPerPx).toFixed(1)} mm left · ${((m.y-r.y)*mm.mmPerPx).toFixed(1)} mm top`;
+   infoLines.push(s);
+ });
+ measures.forEach((m,i)=>{
+   const dx=m.b.x-m.a.x,dy=m.b.y-m.a.y,d=Math.hypot(dx,dy);
+   let s=`M${i+1}: ${mm?(d*mm.mmPerPx).toFixed(2)+' mm':d.toFixed(2)+' px'}`;
+   if(mm)s+=` · ΔX ${(Math.abs(dx)*mm.mmPerPx).toFixed(2)} mm · ΔY ${(Math.abs(dy)*mm.mmPerPx).toFixed(2)} mm`;
+   infoLines.push(s);
+ });
+
+ const scale=1;
+ const pad=Math.max(18,Math.round(crop.w*.018));
+ const font=Math.max(16,Math.round(crop.w*.017));
+ const lineH=Math.round(font*1.45);
+
+ // Estimate text wrapping before sizing footer.
+ const test=document.createElement('canvas').getContext('2d');
+ test.font=`${font}px system-ui`;
+ let rendered=[];
+ for(const line of infoLines){
+   const wraps=wrapCanvasText(test,line,crop.w-pad*2);
+   rendered.push(...wraps);
+ }
+ const footerH=pad*2+lineH*(rendered.length+1);
+
+ const out=document.createElement('canvas');
+ out.width=Math.round(crop.w*scale);
+ out.height=Math.round((crop.h+footerH)*scale);
+ const c=out.getContext('2d');
+
+ // Cropped photo
+ c.drawImage(img,crop.x,crop.y,crop.w,crop.h,0,0,crop.w,crop.h);
+
+ // Grid
+ c.save();
+ c.globalAlpha=+$('opacity').value/100;
+ c.strokeStyle='#00a67d';
+ c.lineWidth=Math.max(1,crop.w/1300);
+ const startX=r.x + Math.ceil((crop.x-r.x)/g.cell)*g.cell;
+ const startY=r.y + Math.ceil((crop.y-r.y)/g.cell)*g.cell;
+ for(let x=startX;x<=crop.x+crop.w+.5;x+=g.cell){
+   const xx=x-crop.x;c.beginPath();c.moveTo(xx,0);c.lineTo(xx,crop.h);c.stroke();
+ }
+ for(let y=startY;y<=crop.y+crop.h+.5;y+=g.cell){
+   const yy=y-crop.y;c.beginPath();c.moveTo(0,yy);c.lineTo(crop.w,yy);c.stroke();
+ }
+ c.restore();
+
+ // Product limits
+ c.save();c.strokeStyle='#1677ff';c.lineWidth=Math.max(2,crop.w/900);
+ c.strokeRect(r.x-crop.x,r.y-crop.y,r.w,r.h);c.restore();
+
+ // Center axes
+ if($('centers').checked){
+   c.save();c.strokeStyle='#f59e0b';c.lineWidth=Math.max(2,crop.w/1000);
+   c.setLineDash([crop.w/120,crop.w/170]);
+   c.beginPath();
+   c.moveTo(r.x+r.w/2-crop.x,r.y-crop.y);c.lineTo(r.x+r.w/2-crop.x,r.y+r.h-crop.y);
+   c.moveTo(r.x-crop.x,r.y+r.h/2-crop.y);c.lineTo(r.x+r.w-crop.x,r.y+r.h/2-crop.y);
+   c.stroke();c.restore();
+ }
+
+ // Landmarks and axes
+ marks.forEach((m,i)=>{
+   const x=m.x-crop.x,y=m.y-crop.y;
+   if(x<0||x>crop.w||y<0||y>crop.h)return;
+   c.save();c.strokeStyle='#e5484d';c.fillStyle='#e5484d';c.lineWidth=Math.max(1.5,crop.w/1100);
+   c.setLineDash([crop.w/150,crop.w/190]);
+   if(m.axisX){c.beginPath();c.moveTo(0,y);c.lineTo(crop.w,y);c.stroke()}
+   if(m.axisY){c.beginPath();c.moveTo(x,0);c.lineTo(x,crop.h);c.stroke()}
+   c.setLineDash([]);
+   const rad=Math.max(7,crop.w/180);c.beginPath();c.arc(x,y,rad,0,Math.PI*2);c.fill();
+   c.fillStyle='#fff';c.font=`${Math.max(12,crop.w/75)}px system-ui`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),x,y);
+   c.restore();
+ });
+
+ // Measurements
+ measures.forEach((m,i)=>{
+   const ax=m.a.x-crop.x,ay=m.a.y-crop.y,bx=m.b.x-crop.x,by=m.b.y-crop.y;
+   c.save();c.strokeStyle='#7c3aed';c.fillStyle='#7c3aed';c.lineWidth=Math.max(2,crop.w/900);
+   c.beginPath();c.moveTo(ax,ay);c.lineTo(bx,by);c.stroke();
+   const rad=Math.max(5,crop.w/220);
+   [[ax,ay],[bx,by]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,rad,0,Math.PI*2);c.fill()});
+   const d=Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y);
+   const label=mm?`${(d*mm.mmPerPx).toFixed(1)} mm`:`${d.toFixed(1)} px`;
+   const mx=(ax+bx)/2,my=(ay+by)/2;
+   c.font=`${Math.max(13,crop.w/72)}px system-ui`;const tw=c.measureText(label).width;
+   c.fillStyle='rgba(255,255,255,.92)';c.fillRect(mx-tw/2-6,my-25,tw+12,22);
+   c.fillStyle='#111';c.textAlign='center';c.textBaseline='middle';c.fillText(label,mx,my-14);
+   c.restore();
+ });
+
+ // Embedded data footer
+ c.fillStyle='#fff';c.fillRect(0,crop.h,crop.w,footerH);
+ c.fillStyle='#111';c.font=`600 ${Math.round(font*1.08)}px system-ui`;
+ c.textAlign='left';c.textBaseline='top';
+ c.fillText('Product Grid Analysis',pad,crop.h+pad);
+ c.font=`${font}px system-ui`;
+ let yy=crop.h+pad+lineH;
+ rendered.forEach(line=>{c.fillText(line,pad,yy);yy+=lineH});
+
+ return out;
+}
+function canvasToPNGBlob(out){
+ return new Promise(resolve=>out.toBlob(resolve,'image/png'));
+}
+async function exportAnnotatedPNG(){
+ const out=createAnnotatedPNGCanvas();
+ if(!out)return;
+ const blob=await canvasToPNGBlob(out);
+   if(!blob){alert('Could not create PNG.');return}
+   const url=URL.createObjectURL(blob);
+   const a=document.createElement('a');
+   a.href=url;a.download='product-grid-analysis.png';
+   document.body.appendChild(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+async function copyAnnotatedPNG(){
+ const out=createAnnotatedPNGCanvas();
+ if(!out)return;
+ if(!window.isSecureContext||!navigator.clipboard?.write||typeof ClipboardItem==='undefined'){
+   alert('This browser cannot copy images here. Open the app over HTTPS (or localhost), or use Export annotated PNG.');
+   return;
+ }
+ const blob=await canvasToPNGBlob(out);
+ if(!blob){alert('Could not create PNG.');return}
+ try{
+   await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+   $('status').textContent='Annotated PNG copied to clipboard';
+ }catch(err){
+   alert('The browser blocked clipboard access. Allow clipboard permission, or use Export annotated PNG.');
+ }
+}
+
+function exportB5Report(){
+ const report=buildReportHTML();
+ if(!report){
+   alert('Load an image and define the four product limits before exporting the report.');
+   return;
+ }
+ const win=window.open('','_blank');
+ if(!win){
+   alert('The browser blocked the report window. Allow pop-ups for this page and try again.');
+   return;
+ }
+ win.document.open();win.document.write(report);win.document.close();
+ setTimeout(()=>{win.focus();win.print()},450);
+}
+
+canvas.addEventListener('pointerdown',e=>{
+ const rr=canvas.getBoundingClientRect(),x=e.clientX-rr.left,y=e.clientY-rr.top;
+ if(mode==='pan'){drag=true;lx=e.clientX;ly=e.clientY;canvas.setPointerCapture(e.pointerId);return}
+ const p=s2i(x,y);
+ if(mode==='sides'){
+   if(sideStep===0){sides.left=p.x;$('status').textContent='Click RIGHT limit';sideStep=1}
+   else if(sideStep===1){sides.right=p.x;$('status').textContent='Click TOP limit';sideStep=2}
+   else if(sideStep===2){sides.top=p.y;$('status').textContent='Click BOTTOM limit';sideStep=3}
+   else{sides.bottom=p.y;$('status').textContent='Four sides set';sideStep=4}
+ }else if(mode==='landmark')marks.push({...p,axisX:false,axisY:false});
+ else if(mode==='measure'){
+   const snapped=$('snapMeasure').checked;
+   const q=snapped?snapPointToGrid(p):p;
+   if(!pendingMeasure){
+     pendingMeasure=q;
+     $('status').textContent='Click measurement end';
+   }else{
+     measures.push({a:pendingMeasure,b:q,snapped});
+     pendingMeasure=null;
+     $('status').textContent='Click measurement start';
+   }
+ }
+ draw();
+});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;imgX+=e.clientX-lx;imgY+=e.clientY-ly;lx=e.clientX;ly=e.clientY;draw()});
+canvas.addEventListener('pointerup',e=>{drag=false;try{canvas.releasePointerCapture(e.pointerId)}catch{}});
+
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('setSides').onclick=()=>setMode('sides');
+$('resetSides').onclick=()=>{sides={left:null,right:null,top:null,bottom:null};sideStep=0;draw();setMode('sides')};
+function nudgeSelectedEdge(direction,step=+$('fineStep').value){
+ if(!ready()){$('status').textContent='Set all four product limits before fine adjustment';return}
+ const edge=$('fineEdge').value;
+ sides[edge]+=direction*step;
+ $('status').textContent=`${edge[0].toUpperCase()+edge.slice(1)} edge: ${sides[edge].toFixed(1)} px`;
+ draw();
+}
+$('fineMinus').onclick=()=>nudgeSelectedEdge(-1);
+$('finePlus').onclick=()=>nudgeSelectedEdge(1);
+$('undoMark').onclick=()=>{marks.pop();draw()};
+$('clearMarks').onclick=()=>{marks=[];draw()};
+$('undoMeasure').onclick=()=>{if(pendingMeasure)pendingMeasure=null;else measures.pop();draw()};
+$('clearMeasures').onclick=()=>{measures=[];pendingMeasure=null;draw()};
+$('fit').onclick=fit;
+$('exportReport').onclick=exportB5Report;
+$('exportPNG').onclick=exportAnnotatedPNG;
+$('copyPNG').onclick=copyAnnotatedPNG;
+
+$('drive').addEventListener('change',()=>{
+ const v=$('drive').value;
+ $('colsBox').style.display=v==='cols'?'block':'none';
+ $('rowsBox').style.display=v==='rows'?'block':'none';
+ $('cellBox').style.display=v==='cell'?'block':'none';
+ draw();
+});
+['cols','rows','cell','opacity','centers','extendGrid','knownSide','knownMM'].forEach(id=>$(id).addEventListener('input',()=>{
+ if(id==='opacity')$('opVal').textContent=$('opacity').value+'%';
+ draw();
+}));
+
+function loadImageFile(f,source='file'){
+ if(!f||!f.type.startsWith('image/'))return;
+ const u=URL.createObjectURL(f),n=new Image();
+ n.onload=()=>{img=n;URL.revokeObjectURL(u);sides={left:null,right:null,top:null,bottom:null};marks=[];measures=[];pendingMeasure=null;fit();setMode('sides');$('status').textContent=source==='clipboard'?'Image pasted — set the left product limit':'Image loaded — set the left product limit'};
+ n.onerror=()=>{URL.revokeObjectURL(u);alert('The image could not be loaded.')};
+ n.src=u;
+}
+$('file').addEventListener('change',e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ loadImageFile(f);
+});
+window.addEventListener('paste',e=>{
+ const item=[...(e.clipboardData?.items||[])].find(entry=>entry.kind==='file'&&entry.type.startsWith('image/'));
+ if(!item)return;
+ const file=item.getAsFile();if(!file)return;
+ e.preventDefault();
+ loadImageFile(file,'clipboard');
+});
+window.addEventListener('keydown',e=>{
+ if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;
+ const edge=$('fineEdge').value,vertical=edge==='left'||edge==='right';
+ let direction=0;
+ if(vertical&&e.key==='ArrowLeft')direction=-1;
+ if(vertical&&e.key==='ArrowRight')direction=1;
+ if(!vertical&&e.key==='ArrowUp')direction=-1;
+ if(!vertical&&e.key==='ArrowDown')direction=1;
+ if(!direction)return;
+ e.preventDefault();
+ nudgeSelectedEdge(direction,e.shiftKey?.1:+$('fineStep').value);
+});
+$('demo').onclick=()=>{
+ const off=document.createElement('canvas');off.width=1100;off.height=760;const c=off.getContext('2d');
+ c.fillStyle='#ece8df';c.fillRect(0,0,1100,760);
+ c.fillStyle='#b8b2a7';c.fillRect(180,170,740,420);
+ c.fillStyle='#242424';c.fillRect(220,210,660,340);
+ c.fillStyle='#111';c.fillRect(285,260,250,135);
+ c.fillStyle='#dadada';c.fillRect(590,255,190,78);
+ for(let i=0;i<3;i++){c.fillStyle='#aaa';c.beginPath();c.arc(610+i*70,430,28,0,Math.PI*2);c.fill()}
+ c.fillStyle='#6f6f6f';c.fillRect(215,570,90,18);c.fillRect(795,570,90,18);
+ const n=new Image();
+ n.onload=()=>{img=n;sides={left:180,right:920,top:170,bottom:590};marks=[{x:410,y:325,axisX:false,axisY:true},{x:610,y:430,axisX:true,axisY:false},{x:750,y:430,axisX:false,axisY:false}];measures=[];pendingMeasure=null;fit();setMode('pan');draw()};
+ n.src=off.toDataURL();
+};
+
+window.addEventListener('resize',resize);
+new ResizeObserver(resize).observe(workspace);
+$('opVal').textContent=$('opacity').value+'%';
+resize();setMode('pan');draw();
+})();
+</script>
+</body>
+</html>
